@@ -13,3 +13,12 @@ dependencies = [
 [build-system]
 requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project.urls]
+Homepage = "https://github.com/om1ji/autodealer"
+Repository = "https://github.com/om1ji/autodealer"
+Issues = "https://github.com/om1ji/autodealer/issues"
+
+[tool.setuptools.packages.find]
+where = ["autodealer"]
+exclude = ["tests*"]
