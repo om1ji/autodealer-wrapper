@@ -1,0 +1,18 @@
+autodealer
+==========
+
+Python ORM-обёртка над базой данных системы **АвтоДилер** (Firebird).
+
+Библиотека предоставляет:
+
+- Автоматически сгенерированные ORM-модели для всех таблиц БД
+- Django-подобный QuerySet API (``Model.objects.filter(...).all()``)
+- Управление подключением и транзакциями через SQLAlchemy 2.0
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Содержание
+
+   quickstart
+   api/queryset
+   api/connection

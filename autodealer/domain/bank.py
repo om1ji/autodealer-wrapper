@@ -1,19 +1,22 @@
-"""SQLAlchemy ORM mapping for the existing BANK table."""
+"""SQLAlchemy 2.0 ORM model for the bank table. AUTO-GENERATED — do not edit manually."""
 
 from __future__ import annotations
 
-from sqlalchemy import Table
+from typing import Optional
 
-from autodealer import Base, get_engine
+from sqlalchemy import Integer, SmallInteger, String, Text
+from sqlalchemy.orm import Mapped, mapped_column
+
+from autodealer.connection import Base
 
 
 class Bank(Base):
-    """
-    ORM model bound to the legacy ``BANK`` Firebird table.
+    __tablename__ = "bank"
 
-    Columns are reflected automatically, so once metadata is loaded you can
-    use ``Bank`` instances just like a regular declarative model.
-    """
-
-    __tablename__ = "BANK"
-    __table__ = Table(__tablename__, Base.metadata, autoload_with=get_engine())
+    bank_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    bik: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    korr_account: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    address: Mapped[Optional[str]] = mapped_column(String(350), nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    hidden: Mapped[int] = mapped_column(SmallInteger, nullable=False, server_default="0")

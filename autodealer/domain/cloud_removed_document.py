@@ -1,0 +1,14 @@
+"""SQLAlchemy 2.0 ORM model for the cloud_removed_document table. AUTO-GENERATED — do not edit manually."""
+
+from __future__ import annotations
+
+from sqlalchemy import Integer
+from sqlalchemy.orm import Mapped, mapped_column
+
+from autodealer.connection import Base
+
+
+class CloudRemovedDocument(Base):
+    __tablename__ = "cloud_removed_document"
+
+    cloud_id: Mapped[int] = mapped_column(Integer, primary_key=True)

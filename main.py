@@ -5,32 +5,23 @@ from __future__ import annotations
 import logging
 from pprint import pprint
 
-from sqlalchemy import select
+from autodealer import configure_database
 
-from autodealer import configure_database, session_scope
-
-# Provide connection credentials directly for this script before models load.
 configure_database(
-    database=r"C:\Program Files (x86)\AutoDealer\AutoDealer\Database\AutoDealer061221.fdb",
+    database=r"C:\Program Files (x86)\AutoDealer\AutoDealer\Database\StOm1.fdb",
     user="SYSDBA",
     password="masterkey",
     host="192.168.88.64",
     port=3050,
-    charset="WIN1251",
+    charset="UTF8",
 )
 
 from autodealer.domain.bank import Bank
 
 
-def bank_to_dict(bank: Bank) -> dict[str, object]:
-    """Serialize a Bank ORM object to plain data for pretty printing."""
-    return {column.name: getattr(bank, column.name) for column in Bank.__table__.columns}
-
-
 def fetch_all_banks() -> list[dict[str, object]]:
-    with session_scope() as session:
-        result = session.execute(select(Bank)).scalars().all()
-        return [bank_to_dict(bank) for bank in result]
+    banks = Bank.objects.all()
+    return [{col.name: getattr(b, col.name) for col in Bank.__table__.columns} for b in banks]
 
 
 if __name__ == "__main__":
@@ -38,3 +29,7 @@ if __name__ == "__main__":
         pprint(fetch_all_banks())
     except Exception:
         logging.exception("Ошибка при чтении таблицы BANK")
+    finally:
+        # Явно закрываем соединение, чтобы избежать мусора GC от драйвера Firebird
+        from autodealer import get_engine
+        get_engine().dispose()

@@ -1,4 +1,21 @@
-"""SQLAlchemy bootstrap helpers for the Firebird database."""
+"""Подключение к базе данных Firebird и управление сессиями SQLAlchemy.
+
+Типичный сценарий использования::
+
+    from autodealer.connection import configure_database, session_scope
+
+    configure_database(
+        host="192.168.88.64",
+        port=3050,
+        database=r"C:\\path\\to\\AutoDealer.fdb",
+        user="SYSDBA",
+        password="masterkey",
+    )
+
+    with session_scope() as session:
+        # работа с сессией
+        ...
+"""
 
 from __future__ import annotations
 
@@ -22,7 +39,20 @@ engine: Engine | None = None
 
 @dataclass(frozen=True)
 class DatabaseConfig:
-    """Store credentials for constructing a SQLAlchemy URL."""
+    """Параметры подключения к базе данных Firebird.
+
+    Используется внутри :func:`configure_database` и :func:`get_connection_url`.
+    Можно создать вручную или через :meth:`from_env`.
+
+    Args:
+        database: Путь к файлу ``.fdb`` на сервере (Windows-путь).
+        user: Имя пользователя Firebird.
+        password: Пароль.
+        host: Хост сервера. По умолчанию из ``DB_HOST`` или ``"localhost"``.
+        port: Порт. По умолчанию из ``DB_PORT`` или ``3050``.
+        charset: Кодировка. По умолчанию из ``DB_CHARSET`` или ``"UTF8"``.
+        dsn: Полный DSN (альтернатива отдельным параметрам).
+    """
 
     database: str | None
     user: str
@@ -34,6 +64,14 @@ class DatabaseConfig:
 
     @classmethod
     def from_env(cls) -> "DatabaseConfig":
+        """Создать конфигурацию из переменных окружения.
+
+        Читает ``DB_DATABASE`` (или ``DB_PATH`` / ``DB_NAME``), ``DB_USER``,
+        ``DB_PASSWORD``, ``DB_HOST``, ``DB_PORT``, ``DB_CHARSET``, ``DB_DSN``.
+
+        Raises:
+            RuntimeError: Если не заданы обязательные переменные.
+        """
         database = (
             os.getenv("DB_DATABASE")
             or os.getenv("DB_PATH")
@@ -99,7 +137,11 @@ def _direct_database_url() -> str | None:
 
 
 def get_connection_url() -> str | URL:
-    """Return the SQLAlchemy URL for the Firebird database."""
+    """Вернуть SQLAlchemy URL для подключения к Firebird.
+
+    Приоритет: явный вызов :func:`configure_database` → переменные окружения
+    ``DATABASE_URL`` / ``DB_URL`` → ``DatabaseConfig.from_env()``.
+    """
     if _config_override:
         return _config_override.to_url()
     url = _direct_database_url()
@@ -109,7 +151,14 @@ def get_connection_url() -> str | URL:
 
 
 def create_db_engine(url: str | URL | None = None) -> Engine:
-    """Create a SQLAlchemy engine configured for Firebird."""
+    """Создать новый SQLAlchemy :class:`~sqlalchemy.engine.Engine` для Firebird.
+
+    Args:
+        url: Готовый URL. Если не передан — используется :func:`get_connection_url`.
+
+    Returns:
+        Новый экземпляр Engine (не кешируется).
+    """
     return create_engine(
         url or get_connection_url(),
         echo=False,
@@ -131,8 +180,13 @@ def _set_engine(new_engine: Engine) -> Engine:
 
 
 def get_engine(url: str | URL | None = None) -> Engine:
-    """
-    Lazily create or return the configured SQLAlchemy engine.
+    """Лениво создать или вернуть кешированный engine.
+
+    Args:
+        url: Если передан — пересоздаёт engine с новым URL.
+
+    Returns:
+        Текущий активный :class:`~sqlalchemy.engine.Engine`.
     """
 
     if url is not None:
@@ -154,17 +208,26 @@ def configure_engine(url: str | URL | None = None) -> Engine:
 
 
 def configure_database(**kwargs: object) -> Engine:
-    """
-    Accept raw credentials instead of relying on environment variables.
+    """Настроить подключение, передав параметры напрямую (без ``.env``).
 
-    Example:
+    Принимает те же поля, что и :class:`DatabaseConfig`:
+    ``database``, ``user``, ``password``, ``host``, ``port``, ``charset``, ``dsn``.
+
+    Args:
+        **kwargs: Параметры подключения.
+
+    Returns:
+        Пересозданный :class:`~sqlalchemy.engine.Engine`.
+
+    Example::
+
         configure_database(
-            database="path/to/AutoDealer.fdb",
-            user="SYSDBA",
-            password="masterkey",
             host="192.168.88.64",
             port=3050,
-            charset="WIN1251",
+            database=r"C:\\path\\to\\AutoDealer.fdb",
+            user="SYSDBA",
+            password="masterkey",
+            charset="UTF8",
         )
     """
 
@@ -179,14 +242,25 @@ class Base(DeclarativeBase):
     pass
 
 
+# Attach Manager after both Base and QuerySet are fully defined to avoid circular imports
+from autodealer.queryset import Manager  # noqa: E402
+
+Base.objects = Manager()  # type: ignore[attr-defined]
+
+
 @contextmanager
 def session_scope() -> Iterator[Session]:
-    """
-    Provide a transactional scope around a series of operations.
+    """Контекстный менеджер для транзакционной работы с сессией.
 
-    Example:
+    Автоматически вызывает ``commit`` при успехе и ``rollback`` при исключении.
+
+    Yields:
+        Активная :class:`~sqlalchemy.orm.Session`.
+
+    Example::
+
         with session_scope() as session:
-            session.query(...)
+            result = session.execute(select(Bank)).scalars().all()
     """
 
     get_engine()
@@ -202,10 +276,16 @@ def session_scope() -> Iterator[Session]:
 
 
 def get_session() -> Generator[Session, None, None]:
-    """
-    FastAPI-style dependency/helper that yields a session.
+    """Генератор сессии для интеграции с FastAPI и подобными фреймворками.
 
-    Use this when integrating with frameworks that expect a generator.
+    Yields:
+        :class:`~sqlalchemy.orm.Session`
+
+    Example::
+
+        # FastAPI
+        def get_banks(session: Session = Depends(get_session)):
+            return session.execute(select(Bank)).scalars().all()
     """
 
     get_engine()
