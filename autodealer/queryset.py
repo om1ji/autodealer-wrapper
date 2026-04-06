@@ -12,19 +12,28 @@ from __future__ import annotations
 
 from typing import Any, Generic, TypeVar
 
-from sqlalchemy import String, delete, func, insert, literal, select, type_coerce, update
+from sqlalchemy import (
+    delete,
+    func,
+    select,
+    type_coerce,
+    update,
+)
 from sqlalchemy.types import NullType
 from sqlalchemy.orm import sessionmaker
 
 
 def _session_scope():
     from autodealer.connection import session_scope
+
     return session_scope()
 
 
 def _get_engine():
     from autodealer.connection import get_engine
+
     return get_engine()
+
 
 T = TypeVar("T")
 
@@ -84,21 +93,21 @@ class QuerySet(Generic[T]):
         # bug where the Firebird type compiler receives the column length as `name`
         # instead of the type name, causing TypeError during SQL compilation.
         lookups = {
-            "exact":      lambda col, v: col == v,
+            "exact": lambda col, v: col == v,
             # type_coerce(..., NullType()) prevents sqlalchemy-firebird from
             # calling visit_VARCHAR on the bind parameter, which has a bug
             # where _render_string_type receives swapped positional arguments.
-            "iexact":     lambda col, v: col.ilike(type_coerce(v, NullType())),
-            "contains":   lambda col, v: col.like(type_coerce(f"%{v}%", NullType())),
-            "icontains":  lambda col, v: col.ilike(type_coerce(f"%{v}%", NullType())),
+            "iexact": lambda col, v: col.ilike(type_coerce(v, NullType())),
+            "contains": lambda col, v: col.like(type_coerce(f"%{v}%", NullType())),
+            "icontains": lambda col, v: col.ilike(type_coerce(f"%{v}%", NullType())),
             "startswith": lambda col, v: col.like(type_coerce(f"{v}%", NullType())),
-            "endswith":   lambda col, v: col.like(type_coerce(f"%{v}", NullType())),
-            "gt":         lambda col, v: col > v,
-            "gte":        lambda col, v: col >= v,
-            "lt":         lambda col, v: col < v,
-            "lte":        lambda col, v: col <= v,
-            "in":         lambda col, v: col.in_(v),
-            "isnull":     lambda col, v: col.is_(None) if v else col.isnot(None),
+            "endswith": lambda col, v: col.like(type_coerce(f"%{v}", NullType())),
+            "gt": lambda col, v: col > v,
+            "gte": lambda col, v: col >= v,
+            "lt": lambda col, v: col < v,
+            "lte": lambda col, v: col <= v,
+            "in": lambda col, v: col.in_(v),
+            "isnull": lambda col, v: col.is_(None) if v else col.isnot(None),
         }
         parts = key.rsplit("__", 1)
         if len(parts) == 2 and parts[1] in lookups:
@@ -348,13 +357,21 @@ class QuerySet(Generic[T]):
 
             bank = Bank.objects.create(name='Тинькофф', bik='044525974')
         """
+        from sqlalchemy import insert as _insert
+
         Session = sessionmaker(bind=_get_engine(), expire_on_commit=False)
         session = Session()
         try:
-            session.execute(insert(self._model).values(**self._coerce_strings(kwargs)))
+            stmt = _insert(self._model).values(**self._coerce_strings(kwargs))
+            result = session.execute(stmt)
             session.commit()
-            # Return a detached instance with the supplied values.
-            return self._model(**kwargs)
+            # Build detached instance; populate trigger-generated PK from RETURNING
+            obj = self._model(**kwargs)
+            pk_cols = list(self._model.__mapper__.primary_key)
+            for col, val in zip(pk_cols, result.inserted_primary_key or []):
+                if getattr(obj, col.key, None) is None and val is not None:
+                    setattr(obj, col.key, val)
+            return obj
         except Exception:
             session.rollback()
             raise
