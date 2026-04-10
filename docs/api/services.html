@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+
+<html lang="ru" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Заказ-наряды (autodealer.services) &#8212; документация autodealer 0.0.1</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css?v=27fed22d" />
+    <script src="../_static/documentation_options.js?v=ba58aea8"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/translations.js?v=cd1d70c9"></script>
+    <link rel="index" title="Алфавитный указатель" href="../genindex.html" />
+    <link rel="search" title="Поиск" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="autodealer-services">
+<h1>Заказ-наряды (<code class="docutils literal notranslate"><span class="pre">autodealer.services</span></code>)<a class="headerlink" href="#autodealer-services" title="Ссылка на этот заголовок">¶</a></h1>
+<p>Высокоуровневые функции для работы с заказ-нарядами.
+Каждая функция выполняет несколько INSERT-ов в одной транзакции — при ошибке полный rollback.</p>
+<nav class="contents local" id="id1">
+<p class="topic-title">Содержание</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#id2" id="id5">Создание заказ-наряда</a></p></li>
+<li><p><a class="reference internal" href="#id3" id="id6">Чтение заказ-наряда</a></p></li>
+<li><p><a class="reference internal" href="#rocketwash" id="id7">Создание из RocketWash</a></p></li>
+<li><p><a class="reference internal" href="#id4" id="id8">Константы</a></p></li>
+</ul>
+</nav>
+<p>—</p>
+<section id="id2">
+<h2><a class="toc-backref" href="#id5" role="doc-backlink">Создание заказ-наряда</a><a class="headerlink" href="#id2" title="Ссылка на этот заголовок">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="autodealer.services.create_service_order">
+<span class="sig-prename descclassname"><span class="pre">autodealer.services.</span></span><span class="sig-name descname"><span class="pre">create_service_order</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">client_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">items</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">document_out_tree_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">organization_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">client_car</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">date_start</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">date_finish</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_by_user_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">notes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">service_order_suffix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autodealer.services.create_service_order" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Создать заказ-наряд с услугами для клиента.</p>
+<p>Цепочка записей в БД:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>document_out
+    ↓
+document_registry
+    ↓
+document_out_header  (prefix=&quot;АВТ&quot;, state=2 «Черновик»)
+    ↓
+document_service_detail  — только если передан client_car
+    ↓
+service_work × N    — по одной записи на каждый ServiceOrderItem
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>client_id</strong> (<em>int</em>) – PK клиента (<code class="docutils literal notranslate"><span class="pre">client.client_id</span></code>).</p></li>
+<li><p><strong>items</strong> (<em>list</em>) – Список <a class="reference internal" href="../domains/document.html#autodealer.services.ServiceOrderItem" title="autodealer.services.ServiceOrderItem"><code class="xref py py-class docutils literal notranslate"><span class="pre">ServiceOrderItem</span></code></a>. Не может быть пустым.</p></li>
+<li><p><strong>document_out_tree_id</strong> (<em>int</em>) – FK папки документов (<code class="docutils literal notranslate"><span class="pre">document_out_tree</span></code>).</p></li>
+<li><p><strong>organization_id</strong> (<em>int</em>) – FK организации-исполнителя.</p></li>
+<li><p><strong>client_car</strong> (<em>int</em>) – <code class="docutils literal notranslate"><span class="pre">model_link.model_link_id</span></code> — привязка авто (опционально).</p></li>
+<li><p><strong>date_start</strong> (<em>datetime</em>) – Дата/время начала (<code class="docutils literal notranslate"><span class="pre">document_registry</span></code>).</p></li>
+<li><p><strong>date_finish</strong> (<em>datetime</em>) – Дата/время окончания (<code class="docutils literal notranslate"><span class="pre">document_out.date_accept</span></code>,
+<code class="docutils literal notranslate"><span class="pre">document_out_header.date_create</span></code>).</p></li>
+<li><p><strong>created_by_user_id</strong> (<em>int</em>) – <code class="docutils literal notranslate"><span class="pre">users.user_id</span></code> исполнителя. По умолчанию <code class="docutils literal notranslate"><span class="pre">1</span></code>.</p></li>
+<li><p><strong>notes</strong> (<em>str</em>) – Примечание к заказ-наряду.</p></li>
+<li><p><strong>service_order_suffix</strong> (<em>str</em>) – Суффикс номера (напр. <code class="docutils literal notranslate"><span class="pre">&quot;К&quot;</span></code>). Префикс всегда <code class="docutils literal notranslate"><span class="pre">&quot;АВТ&quot;</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Результат<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">document_out_id</span></code> созданного заказ-наряда.</p>
+</dd>
+<dt class="field-odd">Тип результата<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+<dt class="field-even">Исключение<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>ValueError</strong> – Если <code class="docutils literal notranslate"><span class="pre">items</span></code> пустой.</p></li>
+<li><p><strong>sqlalchemy.exc.DatabaseError</strong> – При FK-нарушении.</p></li>
+</ul>
+</dd>
+</dl>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">autodealer.services</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_service_order</span><span class="p">,</span> <span class="n">ServiceOrderItem</span>
+
+<span class="n">now</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+<span class="n">doc_id</span> <span class="o">=</span> <span class="n">create_service_order</span><span class="p">(</span>
+    <span class="n">client_id</span><span class="o">=</span><span class="mi">920</span><span class="p">,</span>
+    <span class="n">organization_id</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">document_out_tree_id</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+    <span class="n">date_start</span><span class="o">=</span><span class="n">now</span><span class="p">,</span>
+    <span class="n">date_finish</span><span class="o">=</span><span class="n">now</span> <span class="o">+</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">hours</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+    <span class="n">client_car</span><span class="o">=</span><span class="mi">959</span><span class="p">,</span>
+    <span class="n">notes</span><span class="o">=</span><span class="s2">&quot;Комплексная мойка&quot;</span><span class="p">,</span>
+    <span class="n">service_order_suffix</span><span class="o">=</span><span class="s2">&quot;К&quot;</span><span class="p">,</span>
+    <span class="n">items</span><span class="o">=</span><span class="p">[</span>
+        <span class="n">ServiceOrderItem</span><span class="p">(</span><span class="s2">&quot;Комплекс&quot;</span><span class="p">,</span>    <span class="n">price</span><span class="o">=</span><span class="mf">2300.0</span><span class="p">,</span> <span class="n">time_value</span><span class="o">=</span><span class="mi">90</span><span class="p">,</span> <span class="n">external_id</span><span class="o">=</span><span class="s2">&quot;821460&quot;</span><span class="p">),</span>
+        <span class="n">ServiceOrderItem</span><span class="p">(</span><span class="s2">&quot;Вторая Фаза&quot;</span><span class="p">,</span> <span class="n">price</span><span class="o">=</span><span class="mf">800.0</span><span class="p">,</span>  <span class="n">time_value</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">external_id</span><span class="o">=</span><span class="s2">&quot;821462&quot;</span><span class="p">),</span>
+    <span class="p">],</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">doc_id</span><span class="p">)</span>  <span class="c1"># → document_out_id</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="autodealer.services.ServiceOrderItem">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">autodealer.services.</span></span><span class="sig-name descname"><span class="pre">ServiceOrderItem</span></span><a class="headerlink" href="#autodealer.services.ServiceOrderItem" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Строка услуги в заказ-наряде.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">name:</span> <span class="pre">str</span></span></dt>
+<dd><p>Название работы (макс. 255 символов).</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">price:</span> <span class="pre">float</span></span></dt>
+<dd><p>Цена за единицу.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">time_value:</span> <span class="pre">float</span></span></dt>
+<dd><p>Длительность в минутах.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">quantity:</span> <span class="pre">int</span></span></dt>
+<dd><p>Количество. По умолчанию <code class="docutils literal notranslate"><span class="pre">1</span></code>.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">external_id:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span></span></dt>
+<dd><p>Внешний ID (напр. <code class="docutils literal notranslate"><span class="pre">&quot;821460&quot;</span></code> из RocketWash).</p>
+</dd></dl>
+
+</dd></dl>
+
+<p>—</p>
+</section>
+<section id="id3">
+<h2><a class="toc-backref" href="#id6" role="doc-backlink">Чтение заказ-наряда</a><a class="headerlink" href="#id3" title="Ссылка на этот заголовок">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="autodealer.services.get_service_order">
+<span class="sig-prename descclassname"><span class="pre">autodealer.services.</span></span><span class="sig-name descname"><span class="pre">get_service_order</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">document_out_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autodealer.services.get_service_order" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Загрузить заказ-наряд со всеми строками услуг.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>document_out_id</strong> (<em>int</em>) – PK документа.</p>
+</dd>
+<dt class="field-even">Результат<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="../domains/document.html#autodealer.services.ServiceOrder" title="autodealer.services.ServiceOrder"><code class="xref py py-class docutils literal notranslate"><span class="pre">ServiceOrder</span></code></a> или <code class="docutils literal notranslate"><span class="pre">None</span></code> если не найден.</p>
+</dd>
+</dl>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">autodealer.services</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_service_order</span>
+
+<span class="n">order</span> <span class="o">=</span> <span class="n">get_service_order</span><span class="p">(</span><span class="mi">42</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">order</span><span class="o">.</span><span class="n">summa</span><span class="p">,</span> <span class="n">order</span><span class="o">.</span><span class="n">date_accept</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">order</span><span class="o">.</span><span class="n">items</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">item</span><span class="o">.</span><span class="n">price</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="autodealer.services.ServiceOrder">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">autodealer.services.</span></span><span class="sig-name descname"><span class="pre">ServiceOrder</span></span><a class="headerlink" href="#autodealer.services.ServiceOrder" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Агрегат заказ-наряда.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">document_out_id:</span> <span class="pre">int</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">client_id:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">None</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">summa:</span> <span class="pre">float</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">date_accept:</span> <span class="pre">datetime</span> <span class="pre">|</span> <span class="pre">None</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">date_payment:</span> <span class="pre">datetime</span> <span class="pre">|</span> <span class="pre">None</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">document_number:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">None</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">date_create:</span> <span class="pre">datetime</span> <span class="pre">|</span> <span class="pre">None</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">client_car:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">None</span></span></dt>
+<dd><p><code class="docutils literal notranslate"><span class="pre">model_link_id</span></code> привязанного авто.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">items:</span> <span class="pre">list[ServiceOrderItem]</span></span></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<p>—</p>
+</section>
+<section id="rocketwash">
+<h2><a class="toc-backref" href="#id7" role="doc-backlink">Создание из RocketWash</a><a class="headerlink" href="#rocketwash" title="Ссылка на этот заголовок">¶</a></h2>
+<p>См. страницу <a class="reference internal" href="rocketwash.html"><span class="doc">Интеграция с RocketWash</span></a>.</p>
+<p>—</p>
+</section>
+<section id="id4">
+<h2><a class="toc-backref" href="#id8" role="doc-backlink">Константы</a><a class="headerlink" href="#id4" title="Ссылка на этот заголовок">¶</a></h2>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 40.0%" />
+<col style="width: 20.0%" />
+<col style="width: 40.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Константа</p></th>
+<th class="head"><p>Значение</p></th>
+<th class="head"><p>Описание</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">_DOCUMENT_TYPE_SERVICE_ORDER</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">11</span></code></p></td>
+<td><p>Тип документа «Заказ-наряд»</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">_SERVICE_ORDER_PREFIX</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&quot;АВТ&quot;</span></code></p></td>
+<td><p>Префикс номера документа</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">_DOCUMENT_STATE[&quot;Черновик&quot;]</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">2</span></code></p></td>
+<td><p>Статус при создании</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">_METATABLE_DOCUMENT_OUT</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">12</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">document_registry.metatable_id</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">autodealer</a></h1>
+
+
+
+<p class="blurb">Python ORM-обёртка для базы данных АвтоДилер (Firebird)</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=om1ji&repo=autodealer-wrapper&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Искать" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Навигация</h3>
+<p class="caption" role="heading"><span class="caption-text">Начало работы</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart.html">Быстрый старт</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Бизнес-домены</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../domains/client.html">Домен: Клиенты</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../domains/vehicle.html">Домен: Автомобили</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../domains/document.html">Домен: Документы / Заказ-наряды</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../domains/payment.html">Домен: Платежи</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../domains/service_catalog.html">Домен: Справочник услуг</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../domains/organization.html">Домен: Организации</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Интеграции</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="rocketwash.html">Интеграция с RocketWash</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Инфраструктура</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="queryset.html">QuerySet API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="connection.html">Подключение и сессии</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2025, Om1ji.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 8.2.3</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="../_sources/api/services.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

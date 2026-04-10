@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+
+<html lang="ru" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Высокоуровневые действия (autodealer.actions) &#8212; документация autodealer 0.0.1</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css?v=27fed22d" />
+    <script src="../_static/documentation_options.js?v=ba58aea8"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/translations.js?v=cd1d70c9"></script>
+    <link rel="index" title="Алфавитный указатель" href="../genindex.html" />
+    <link rel="search" title="Поиск" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="autodealer-actions">
+<h1>Высокоуровневые действия (<code class="docutils literal notranslate"><span class="pre">autodealer.actions</span></code>)<a class="headerlink" href="#autodealer-actions" title="Ссылка на этот заголовок">¶</a></h1>
+<p>Пакет <code class="docutils literal notranslate"><span class="pre">autodealer.actions</span></code> содержит высокоуровневые функции для работы
+с клиентами, автомобилями и платежами.
+В отличие от ORM-моделей, каждая функция выполняет атомарную бизнес-операцию
+и скрывает детали <code class="docutils literal notranslate"><span class="pre">directory_registry</span></code> / транзакций от вызывающего кода.</p>
+<nav class="contents local" id="id1">
+<p class="topic-title">Содержание</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#actions-client" id="id13">Клиенты и автомобили (<code class="docutils literal notranslate"><span class="pre">actions.client</span></code>)</a></p>
+<ul>
+<li><p><a class="reference internal" href="#id2" id="id14">Создание клиента</a></p></li>
+<li><p><a class="reference internal" href="#id5" id="id15">Автомобили клиента</a></p></li>
+<li><p><a class="reference internal" href="#id6" id="id16">Вспомогательные функции</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#actions-payment" id="id17">Платежи (<code class="docutils literal notranslate"><span class="pre">actions.payment</span></code>)</a></p>
+<ul>
+<li><p><a class="reference internal" href="#id7" id="id18">Связь таблиц</a></p></li>
+<li><p><a class="reference internal" href="#id8" id="id19">Справочники</a></p></li>
+<li><p><a class="reference internal" href="#id9" id="id20">Чтение платежей</a></p></li>
+<li><p><a class="reference internal" href="#id10" id="id21">Создание платежа</a></p></li>
+<li><p><a class="reference internal" href="#id11" id="id22">Разбивка оплаты</a></p></li>
+<li><p><a class="reference internal" href="#id12" id="id23">Типы данных</a></p></li>
+</ul>
+</li>
+</ul>
+</nav>
+<p>—</p>
+<section id="actions-client">
+<h2><a class="toc-backref" href="#id13" role="doc-backlink">Клиенты и автомобили (<code class="docutils literal notranslate"><span class="pre">actions.client</span></code>)</a><a class="headerlink" href="#actions-client" title="Ссылка на этот заголовок">¶</a></h2>
+<section id="id2">
+<h3><a class="toc-backref" href="#id14" role="doc-backlink">Создание клиента</a><a class="headerlink" href="#id2" title="Ссылка на этот заголовок">¶</a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="autodealer.actions.client.create_client">
+<span class="sig-prename descclassname"><span class="pre">autodealer.actions.client.</span></span><span class="sig-name descname"><span class="pre">create_client</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fullname</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">phone</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">email</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">birth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sex</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">discount</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">discount_work</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">client_tree_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_by_user_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autodealer.actions.client.create_client" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Создать клиента в Firebird.</p>
+<p>Атомарно создаёт цепочку:
+<code class="docutils literal notranslate"><span class="pre">DirectoryRegistry</span> <span class="pre">(metatable=3)</span></code> → <code class="docutils literal notranslate"><span class="pre">Client</span></code> → <code class="docutils literal notranslate"><span class="pre">Contact</span></code> (если есть phone/email).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fullname</strong> (<em>str</em>) – Полное имя (обязательно).</p></li>
+<li><p><strong>phone</strong> (<em>str</em>) – Мобильный телефон.</p></li>
+<li><p><strong>email</strong> (<em>str</em>) – Email.</p></li>
+<li><p><strong>birth</strong> (<em>date</em>) – Дата рождения.</p></li>
+<li><p><strong>sex</strong> (<em>int</em>) – 1=муж, 2=жен, <a href="#id3"><span class="problematic" id="id4">``</span></a>None``=не указан.</p></li>
+<li><p><strong>discount</strong> (<em>float</em>) – Скидка на товары %.</p></li>
+<li><p><strong>discount_work</strong> (<em>float</em>) – Скидка на работы %.</p></li>
+<li><p><strong>client_tree_id</strong> (<em>int</em>) – Папка клиентов (1=Физлица, 2=Юрлица, 3=VIP).</p></li>
+<li><p><strong>created_by_user_id</strong> (<em>int</em>) – Пользователь-создатель.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Результат<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">client_id</span></code> созданного клиента.</p>
+</dd>
+<dt class="field-odd">Тип результата<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">date</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">autodealer.actions.client</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_client</span>
+
+<span class="n">client_id</span> <span class="o">=</span> <span class="n">create_client</span><span class="p">(</span>
+    <span class="s2">&quot;Иванов Иван Иванович&quot;</span><span class="p">,</span>
+    <span class="n">phone</span><span class="o">=</span><span class="s2">&quot;79991234567&quot;</span><span class="p">,</span>
+    <span class="n">email</span><span class="o">=</span><span class="s2">&quot;ivan@example.com&quot;</span><span class="p">,</span>
+    <span class="n">birth</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">1990</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">15</span><span class="p">),</span>
+    <span class="n">sex</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">discount</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+<section id="id5">
+<h3><a class="toc-backref" href="#id15" role="doc-backlink">Автомобили клиента</a><a class="headerlink" href="#id5" title="Ссылка на этот заголовок">¶</a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="autodealer.actions.client.add_vehicle_to_client">
+<span class="sig-prename descclassname"><span class="pre">autodealer.actions.client.</span></span><span class="sig-name descname"><span class="pre">add_vehicle_to_client</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">make</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_name</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">regno</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_car</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_by_user_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autodealer.actions.client.add_vehicle_to_client" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Добавить автомобиль клиенту по имени марки и модели.</p>
+<p>Автоматически находит или создаёт записи в <code class="docutils literal notranslate"><span class="pre">mark</span></code>, <code class="docutils literal notranslate"><span class="pre">model</span></code>, <code class="docutils literal notranslate"><span class="pre">color</span></code>,
+затем создаёт <code class="docutils literal notranslate"><span class="pre">model_detail</span></code> и <code class="docutils literal notranslate"><span class="pre">model_link</span></code>.</p>
+<p>Идемпотентность: если машина с таким <code class="docutils literal notranslate"><span class="pre">regno</span></code> уже существует — возвращает
+существующий <code class="docutils literal notranslate"><span class="pre">model_detail_id</span></code> без дубликата.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>client_id</strong> (<em>int</em>) – PK клиента.</p></li>
+<li><p><strong>make</strong> (<em>str</em>) – Марка («Toyota», «BMW»).</p></li>
+<li><p><strong>model_name</strong> (<em>str</em>) – Модель («Camry», «X5»).</p></li>
+<li><p><strong>regno</strong> (<em>str</em>) – Госномер.</p></li>
+<li><p><strong>vin</strong> (<em>str</em>) – VIN-номер.</p></li>
+<li><p><strong>year</strong> (<em>int</em>) – Год выпуска.</p></li>
+<li><p><strong>color</strong> (<em>str</em>) – Цвет строкой («Белый», «Чёрный»).</p></li>
+<li><p><strong>default_car</strong> (<em>bool</em>) – Пометить как основное авто.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Результат<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">model_detail_id</span></code> созданного или существующего автомобиля.</p>
+</dd>
+<dt class="field-odd">Тип результата<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">autodealer.actions.client</span><span class="w"> </span><span class="kn">import</span> <span class="n">add_vehicle_to_client</span>
+
+<span class="n">md_id</span> <span class="o">=</span> <span class="n">add_vehicle_to_client</span><span class="p">(</span>
+    <span class="n">client_id</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>
+    <span class="n">make</span><span class="o">=</span><span class="s2">&quot;Toyota&quot;</span><span class="p">,</span>
+    <span class="n">model_name</span><span class="o">=</span><span class="s2">&quot;Camry&quot;</span><span class="p">,</span>
+    <span class="n">regno</span><span class="o">=</span><span class="s2">&quot;А001ВС77&quot;</span><span class="p">,</span>
+    <span class="n">year</span><span class="o">=</span><span class="mi">2020</span><span class="p">,</span>
+    <span class="n">color</span><span class="o">=</span><span class="s2">&quot;Белый&quot;</span><span class="p">,</span>
+    <span class="n">default_car</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="autodealer.actions.client.get_client_vehicles">
+<span class="sig-prename descclassname"><span class="pre">autodealer.actions.client.</span></span><span class="sig-name descname"><span class="pre">get_client_vehicles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autodealer.actions.client.get_client_vehicles" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Вернуть все автомобили клиента в виде объектов <code class="xref py py-class docutils literal notranslate"><span class="pre">ModelLink</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>client_id</strong> (<em>int</em>) – PK клиента.</p>
+</dd>
+<dt class="field-even">Результат<span class="colon">:</span></dt>
+<dd class="field-even"><p>Список <code class="xref py py-class docutils literal notranslate"><span class="pre">ModelLink</span></code>.
+Пустой список если у клиента нет машин.</p>
+</dd>
+</dl>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">autodealer.actions.client</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_client_vehicles</span>
+
+<span class="n">cars</span> <span class="o">=</span> <span class="n">get_client_vehicles</span><span class="p">(</span><span class="mi">42</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">car</span> <span class="ow">in</span> <span class="n">cars</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">car</span><span class="o">.</span><span class="n">model_link_id</span><span class="p">,</span> <span class="n">car</span><span class="o">.</span><span class="n">model_detail_id</span><span class="p">,</span> <span class="n">car</span><span class="o">.</span><span class="n">default_car</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="autodealer.actions.client.create_vehicle_for_client">
+<span class="sig-prename descclassname"><span class="pre">autodealer.actions.client.</span></span><span class="sig-name descname"><span class="pre">create_vehicle_for_client</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">client_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vin=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">regno=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year_of_production=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color_id=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">...</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autodealer.actions.client.create_vehicle_for_client" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Создать автомобиль и привязать к клиенту напрямую через <code class="docutils literal notranslate"><span class="pre">model_id</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Результат<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Экземпляр <code class="xref py py-class docutils literal notranslate"><span class="pre">ModelLink</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="id6">
+<h3><a class="toc-backref" href="#id16" role="doc-backlink">Вспомогательные функции</a><a class="headerlink" href="#id6" title="Ссылка на этот заголовок">¶</a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="autodealer.actions.client.get_or_create_mark">
+<span class="sig-prename descclassname"><span class="pre">autodealer.actions.client.</span></span><span class="sig-name descname"><span class="pre">get_or_create_mark</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autodealer.actions.client.get_or_create_mark" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Найти марку по имени или создать новую. Возвращает <code class="docutils literal notranslate"><span class="pre">mark_id</span></code>.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="autodealer.actions.client.get_or_create_model">
+<span class="sig-prename descclassname"><span class="pre">autodealer.actions.client.</span></span><span class="sig-name descname"><span class="pre">get_or_create_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mark_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autodealer.actions.client.get_or_create_model" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Найти модель по марке и имени или создать новую. Возвращает <code class="docutils literal notranslate"><span class="pre">model_id</span></code>.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="autodealer.actions.client.get_or_create_color">
+<span class="sig-prename descclassname"><span class="pre">autodealer.actions.client.</span></span><span class="sig-name descname"><span class="pre">get_or_create_color</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autodealer.actions.client.get_or_create_color" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Найти цвет или создать новый. Возвращает <code class="docutils literal notranslate"><span class="pre">color_id</span></code> или <code class="docutils literal notranslate"><span class="pre">None</span></code> если <code class="docutils literal notranslate"><span class="pre">name</span></code> пустой.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="autodealer.actions.client.find_vehicle_by_regno">
+<span class="sig-prename descclassname"><span class="pre">autodealer.actions.client.</span></span><span class="sig-name descname"><span class="pre">find_vehicle_by_regno</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">regno</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autodealer.actions.client.find_vehicle_by_regno" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Найти автомобиль по госномеру. Возвращает <code class="docutils literal notranslate"><span class="pre">model_detail_id</span></code> или <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="autodealer.actions.client.find_vehicle_by_vin">
+<span class="sig-prename descclassname"><span class="pre">autodealer.actions.client.</span></span><span class="sig-name descname"><span class="pre">find_vehicle_by_vin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vin</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autodealer.actions.client.find_vehicle_by_vin" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Найти автомобиль по VIN. Возвращает <code class="docutils literal notranslate"><span class="pre">model_detail_id</span></code> или <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd></dl>
+
+<p>—</p>
+</section>
+</section>
+<section id="actions-payment">
+<h2><a class="toc-backref" href="#id17" role="doc-backlink">Платежи (<code class="docutils literal notranslate"><span class="pre">actions.payment</span></code>)</a><a class="headerlink" href="#actions-payment" title="Ссылка на этот заголовок">¶</a></h2>
+<section id="id7">
+<h3><a class="toc-backref" href="#id18" role="doc-backlink">Связь таблиц</a><a class="headerlink" href="#id7" title="Ссылка на этот заголовок">¶</a></h3>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>document_out
+    │
+    └── payment_out.document_out_id ──► payment
+                                            │
+                                            ├── payment_document.payment_id
+                                            │       └── document_registry
+                                            │
+                                            └── money_document_payment.payment_id
+                                                    └── money_document_detail
+                                                            (accounting_item_id=3
+                                                             «Поступление от клиента»)
+</pre></div>
+</div>
+</section>
+<section id="id8">
+<h3><a class="toc-backref" href="#id19" role="doc-backlink">Справочники</a><a class="headerlink" href="#id8" title="Ссылка на этот заголовок">¶</a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="autodealer.actions.payment.get_wallets">
+<span class="sig-prename descclassname"><span class="pre">autodealer.actions.payment.</span></span><span class="sig-name descname"><span class="pre">get_wallets</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">organization_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autodealer.actions.payment.get_wallets" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Вернуть кошельки (кассы/счета) организации.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>organization_id</strong> (<em>int</em>) – PK организации.</p>
+</dd>
+<dt class="field-even">Результат<span class="colon">:</span></dt>
+<dd class="field-even"><p>Список <a class="reference internal" href="../domains/payment.html#autodealer.actions.payment.WalletInfo" title="autodealer.actions.payment.WalletInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">WalletInfo</span></code></a>.</p>
+</dd>
+</dl>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">autodealer.actions.payment</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_wallets</span>
+
+<span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">get_wallets</span><span class="p">(</span><span class="mi">1</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">w</span><span class="o">.</span><span class="n">wallet_id</span><span class="p">,</span> <span class="n">w</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="autodealer.actions.payment.get_payment_types">
+<span class="sig-prename descclassname"><span class="pre">autodealer.actions.payment.</span></span><span class="sig-name descname"><span class="pre">get_payment_types</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#autodealer.actions.payment.get_payment_types" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Вернуть активные способы оплаты из <code class="docutils literal notranslate"><span class="pre">payment_type</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Результат<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Список <a class="reference internal" href="../domains/payment.html#autodealer.actions.payment.PaymentTypeInfo" title="autodealer.actions.payment.PaymentTypeInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">PaymentTypeInfo</span></code></a>.</p>
+</dd>
+</dl>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">autodealer.actions.payment</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_payment_types</span>
+
+<span class="k">for</span> <span class="n">pt</span> <span class="ow">in</span> <span class="n">get_payment_types</span><span class="p">():</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">pt</span><span class="o">.</span><span class="n">payment_type_id</span><span class="p">,</span> <span class="n">pt</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+<section id="id9">
+<h3><a class="toc-backref" href="#id20" role="doc-backlink">Чтение платежей</a><a class="headerlink" href="#id9" title="Ссылка на этот заголовок">¶</a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="autodealer.actions.payment.get_payments">
+<span class="sig-prename descclassname"><span class="pre">autodealer.actions.payment.</span></span><span class="sig-name descname"><span class="pre">get_payments</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">document_out_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autodealer.actions.payment.get_payments" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Вернуть все платежи по заказ-наряду.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>document_out_id</strong> (<em>int</em>) – PK заказ-наряда.</p>
+</dd>
+<dt class="field-even">Результат<span class="colon">:</span></dt>
+<dd class="field-even"><p>Список <a class="reference internal" href="../domains/payment.html#autodealer.actions.payment.PaymentRecord" title="autodealer.actions.payment.PaymentRecord"><code class="xref py py-class docutils literal notranslate"><span class="pre">PaymentRecord</span></code></a>. Пустой если платежей нет.</p>
+</dd>
+</dl>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">autodealer.actions.payment</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_payments</span>
+
+<span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">get_payments</span><span class="p">(</span><span class="mi">42</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">payment_id</span><span class="p">,</span> <span class="n">p</span><span class="o">.</span><span class="n">summa</span><span class="p">,</span> <span class="n">p</span><span class="o">.</span><span class="n">payment_type_name</span><span class="p">,</span> <span class="n">p</span><span class="o">.</span><span class="n">wallet_name</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+<section id="id10">
+<h3><a class="toc-backref" href="#id21" role="doc-backlink">Создание платежа</a><a class="headerlink" href="#id10" title="Ссылка на этот заголовок">¶</a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="autodealer.actions.payment.create_payment">
+<span class="sig-prename descclassname"><span class="pre">autodealer.actions.payment.</span></span><span class="sig-name descname"><span class="pre">create_payment</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">document_out_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">summa</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wallet_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">payment_type_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">payment_date</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">notes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autodealer.actions.payment.create_payment" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Создать документ оплаты для заказ-наряда.</p>
+<p>Атомарно создаёт цепочку:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">payment</span></code> — запись платежа.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">payment_out</span></code> — привязка к <code class="docutils literal notranslate"><span class="pre">document_out</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">payment_document</span></code> — привязка к <code class="docutils literal notranslate"><span class="pre">document_registry</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">money_document_detail</span></code> — бухгалтерская проводка (<code class="docutils literal notranslate"><span class="pre">accounting_item_id=3</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">money_document_payment</span></code> — связь проводки с платежом.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">UPDATE</span> <span class="pre">document_out.date_payment</span></code>.</p></li>
+</ol>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>document_out_id</strong> (<em>int</em>) – PK заказ-наряда.</p></li>
+<li><p><strong>summa</strong> (<em>float</em>) – Сумма платежа.</p></li>
+<li><p><strong>wallet_id</strong> (<em>int</em>) – FK в <code class="docutils literal notranslate"><span class="pre">wallet</span></code> — касса/счёт.</p></li>
+<li><p><strong>payment_type_id</strong> (<em>int</em>) – FK в <code class="docutils literal notranslate"><span class="pre">payment_type</span></code> — способ оплаты.</p></li>
+<li><p><strong>payment_date</strong> (<em>datetime</em>) – Дата платежа. По умолчанию — текущее время.</p></li>
+<li><p><strong>notes</strong> (<em>str</em>) – Примечание.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Результат<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">payment_id</span></code> созданного платежа.</p>
+</dd>
+<dt class="field-odd">Тип результата<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+<dt class="field-even">Исключение<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – Если заказ-наряд не найден.</p>
+</dd>
+</dl>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">autodealer.actions.payment</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_payment</span>
+
+<span class="n">payment_id</span> <span class="o">=</span> <span class="n">create_payment</span><span class="p">(</span>
+    <span class="n">document_out_id</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>
+    <span class="n">summa</span><span class="o">=</span><span class="mf">2300.0</span><span class="p">,</span>
+    <span class="n">wallet_id</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>        <span class="c1"># Наличный расчёт</span>
+    <span class="n">payment_type_id</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>  <span class="c1"># Наличный</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+<section id="id11">
+<h3><a class="toc-backref" href="#id22" role="doc-backlink">Разбивка оплаты</a><a class="headerlink" href="#id11" title="Ссылка на этот заголовок">¶</a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="autodealer.actions.payment.create_payment_split">
+<span class="sig-prename descclassname"><span class="pre">autodealer.actions.payment.</span></span><span class="sig-name descname"><span class="pre">create_payment_split</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">document_out_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">payment_date</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autodealer.actions.payment.create_payment_split" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Создать несколько платежей за один заказ-наряд (разбивка по способам оплаты).
+Каждая часть создаётся через <a class="reference internal" href="../domains/payment.html#autodealer.actions.payment.create_payment" title="autodealer.actions.payment.create_payment"><code class="xref py py-func docutils literal notranslate"><span class="pre">create_payment()</span></code></a> независимо.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>document_out_id</strong> (<em>int</em>) – PK заказ-наряда.</p></li>
+<li><p><strong>parts</strong> (<em>list</em>) – Список <a class="reference internal" href="../domains/payment.html#autodealer.actions.payment.PaymentSplitItem" title="autodealer.actions.payment.PaymentSplitItem"><code class="xref py py-class docutils literal notranslate"><span class="pre">PaymentSplitItem</span></code></a>.</p></li>
+<li><p><strong>payment_date</strong> (<em>datetime</em>) – Единая дата для всех частей.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Результат<span class="colon">:</span></dt>
+<dd class="field-even"><p>Список <code class="docutils literal notranslate"><span class="pre">payment_id</span></code> в том же порядке, что и <code class="docutils literal notranslate"><span class="pre">parts</span></code>.</p>
+</dd>
+<dt class="field-odd">Тип результата<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[int]</p>
+</dd>
+<dt class="field-even">Исключение<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – Если <code class="docutils literal notranslate"><span class="pre">parts</span></code> пустой или суммы &lt;= 0.</p>
+</dd>
+</dl>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">autodealer.actions.payment</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_payment_split</span><span class="p">,</span> <span class="n">PaymentSplitItem</span>
+
+<span class="n">ids</span> <span class="o">=</span> <span class="n">create_payment_split</span><span class="p">(</span>
+    <span class="n">document_out_id</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>
+    <span class="n">parts</span><span class="o">=</span><span class="p">[</span>
+        <span class="n">PaymentSplitItem</span><span class="p">(</span><span class="n">wallet_id</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">payment_type_id</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">summa</span><span class="o">=</span><span class="mf">1000.0</span><span class="p">),</span>  <span class="c1"># наличные</span>
+        <span class="n">PaymentSplitItem</span><span class="p">(</span><span class="n">wallet_id</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">payment_type_id</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span> <span class="n">summa</span><span class="o">=</span><span class="mf">1300.0</span><span class="p">),</span>  <span class="c1"># карта</span>
+    <span class="p">],</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+<section id="id12">
+<h3><a class="toc-backref" href="#id23" role="doc-backlink">Типы данных</a><a class="headerlink" href="#id12" title="Ссылка на этот заголовок">¶</a></h3>
+<dl class="py class">
+<dt class="sig sig-object py" id="autodealer.actions.payment.WalletInfo">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">autodealer.actions.payment.</span></span><span class="sig-name descname"><span class="pre">WalletInfo</span></span><a class="headerlink" href="#autodealer.actions.payment.WalletInfo" title="Ссылка на это определение">¶</a></dt>
+<dd><dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">wallet_id:</span> <span class="pre">int</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">name:</span> <span class="pre">str</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">organization_id:</span> <span class="pre">int</span></span></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="autodealer.actions.payment.PaymentTypeInfo">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">autodealer.actions.payment.</span></span><span class="sig-name descname"><span class="pre">PaymentTypeInfo</span></span><a class="headerlink" href="#autodealer.actions.payment.PaymentTypeInfo" title="Ссылка на это определение">¶</a></dt>
+<dd><dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">payment_type_id:</span> <span class="pre">int</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">name:</span> <span class="pre">str</span></span></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="autodealer.actions.payment.PaymentRecord">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">autodealer.actions.payment.</span></span><span class="sig-name descname"><span class="pre">PaymentRecord</span></span><a class="headerlink" href="#autodealer.actions.payment.PaymentRecord" title="Ссылка на это определение">¶</a></dt>
+<dd><dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">payment_id:</span> <span class="pre">int</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">summa:</span> <span class="pre">Decimal</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">payment_date:</span> <span class="pre">datetime</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">payment_type_id:</span> <span class="pre">int</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">payment_type_name:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">wallet_id:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">None</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">wallet_name:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">notes:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span></span></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="autodealer.actions.payment.PaymentSplitItem">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">autodealer.actions.payment.</span></span><span class="sig-name descname"><span class="pre">PaymentSplitItem</span></span><a class="headerlink" href="#autodealer.actions.payment.PaymentSplitItem" title="Ссылка на это определение">¶</a></dt>
+<dd><dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">wallet_id:</span> <span class="pre">int</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">payment_type_id:</span> <span class="pre">int</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">summa:</span> <span class="pre">float</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">notes:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span></span></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">autodealer</a></h1>
+
+
+
+<p class="blurb">Python ORM-обёртка для базы данных АвтоДилер (Firebird)</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=om1ji&repo=autodealer-wrapper&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Искать" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Навигация</h3>
+<p class="caption" role="heading"><span class="caption-text">Начало работы</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart.html">Быстрый старт</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Бизнес-домены</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../domains/client.html">Домен: Клиенты</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../domains/vehicle.html">Домен: Автомобили</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../domains/document.html">Домен: Документы / Заказ-наряды</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../domains/payment.html">Домен: Платежи</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../domains/service_catalog.html">Домен: Справочник услуг</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../domains/organization.html">Домен: Организации</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Интеграции</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="rocketwash.html">Интеграция с RocketWash</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Инфраструктура</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="queryset.html">QuerySet API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="connection.html">Подключение и сессии</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2025, Om1ji.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 8.2.3</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="../_sources/api/actions.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

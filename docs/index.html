@@ -41,9 +41,10 @@
 <li><p>Автоматически сгенерированные ORM-модели для всех таблиц БД</p></li>
 <li><p>Django-подобный QuerySet API (<code class="docutils literal notranslate"><span class="pre">Model.objects.filter(...).all()</span></code>)</p></li>
 <li><p>Управление подключением и транзакциями через SQLAlchemy 2.0</p></li>
+<li><p>Высокоуровневые функции для клиентов, заказ-нарядов, платежей</p></li>
 </ul>
 <div class="toctree-wrapper compound">
-<p class="caption" role="heading"><span class="caption-text">Содержание</span></p>
+<p class="caption" role="heading"><span class="caption-text">Начало работы</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="quickstart.html">Быстрый старт</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="quickstart.html#id2">Установка</a></li>
@@ -54,27 +55,53 @@
 <li class="toctree-l2"><a class="reference internal" href="quickstart.html#id6">Генерация моделей</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="api/queryset.html">QuerySet API</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="api/queryset.html#autodealer.queryset.DoesNotExist"><code class="docutils literal notranslate"><span class="pre">DoesNotExist</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/queryset.html#autodealer.queryset.MultipleObjectsReturned"><code class="docutils literal notranslate"><span class="pre">MultipleObjectsReturned</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/queryset.html#autodealer.queryset.QuerySet"><code class="docutils literal notranslate"><span class="pre">QuerySet</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/queryset.html#autodealer.queryset.Manager"><code class="docutils literal notranslate"><span class="pre">Manager</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/queryset.html#id1">Таблица лукапов</a></li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Бизнес-домены</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="domains/client.html">Домен: Клиенты</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="domains/client.html#orm">ORM-модели</a></li>
+<li class="toctree-l2"><a class="reference internal" href="domains/client.html#actions-client">Высокоуровневые действия (<code class="docutils literal notranslate"><span class="pre">actions.client</span></code>)</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="api/connection.html">Подключение и сессии</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="api/connection.html#autodealer.connection.Base"><code class="docutils literal notranslate"><span class="pre">Base</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/connection.html#autodealer.connection.get_connection_url"><code class="docutils literal notranslate"><span class="pre">get_connection_url()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/connection.html#autodealer.connection.create_db_engine"><code class="docutils literal notranslate"><span class="pre">create_db_engine()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/connection.html#autodealer.connection.get_engine"><code class="docutils literal notranslate"><span class="pre">get_engine()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/connection.html#autodealer.connection.configure_database"><code class="docutils literal notranslate"><span class="pre">configure_database()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/connection.html#autodealer.connection.configure_engine"><code class="docutils literal notranslate"><span class="pre">configure_engine()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/connection.html#autodealer.connection.session_scope"><code class="docutils literal notranslate"><span class="pre">session_scope()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/connection.html#autodealer.connection.get_session"><code class="docutils literal notranslate"><span class="pre">get_session()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/connection.html#autodealer.connection.set_session_user"><code class="docutils literal notranslate"><span class="pre">set_session_user()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/connection.html#autodealer.connection.DatabaseConfig"><code class="docutils literal notranslate"><span class="pre">DatabaseConfig</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="domains/vehicle.html">Домен: Автомобили</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="domains/vehicle.html#id3">Схема связей</a></li>
+<li class="toctree-l2"><a class="reference internal" href="domains/vehicle.html#orm">ORM-модели</a></li>
+<li class="toctree-l2"><a class="reference internal" href="domains/vehicle.html#actions-client">Высокоуровневые действия (<code class="docutils literal notranslate"><span class="pre">actions.client</span></code>)</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="domains/document.html">Домен: Документы / Заказ-наряды</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="domains/document.html#id3">Схема связей</a></li>
+<li class="toctree-l2"><a class="reference internal" href="domains/document.html#orm">ORM-модели</a></li>
+<li class="toctree-l2"><a class="reference internal" href="domains/document.html#services">Высокоуровневые функции (<code class="docutils literal notranslate"><span class="pre">services</span></code>)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="domains/document.html#id4">Константы</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="domains/payment.html">Домен: Платежи</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="domains/payment.html#id3">Схема связей</a></li>
+<li class="toctree-l2"><a class="reference internal" href="domains/payment.html#orm">ORM-модели</a></li>
+<li class="toctree-l2"><a class="reference internal" href="domains/payment.html#actions-payment">Высокоуровневые действия (<code class="docutils literal notranslate"><span class="pre">actions.payment</span></code>)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="domains/payment.html#id8">Типы данных</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="domains/service_catalog.html">Домен: Справочник услуг</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="domains/service_catalog.html#id3">Схема связей</a></li>
+<li class="toctree-l2"><a class="reference internal" href="domains/service_catalog.html#orm">ORM-модели</a></li>
+<li class="toctree-l2"><a class="reference internal" href="domains/service_catalog.html#services">Высокоуровневые функции (<code class="docutils literal notranslate"><span class="pre">services</span></code>)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="domains/organization.html">Домен: Организации</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="domains/organization.html#orm">ORM-модели</a></li>
+<li class="toctree-l2"><a class="reference internal" href="domains/organization.html#services">Высокоуровневые функции (<code class="docutils literal notranslate"><span class="pre">services</span></code>)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="domains/organization.html#id3">Типы данных</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Интеграции</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="api/rocketwash.html">Интеграция с RocketWash</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="api/rocketwash.html#id2">Маппинги</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/rocketwash.html#id4">Создание заказ-нарядов</a></li>
@@ -82,6 +109,13 @@
 <li class="toctree-l2"><a class="reference internal" href="api/rocketwash.html#id7">Типы данных</a></li>
 </ul>
 </li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Инфраструктура</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api/queryset.html">QuerySet API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/connection.html">Подключение и сессии</a></li>
 </ul>
 </div>
 </section>
@@ -121,12 +155,27 @@
     </div>
 </search>
 <script>document.getElementById('searchbox').style.display = "block"</script><h3>Навигация</h3>
-<p class="caption" role="heading"><span class="caption-text">Содержание</span></p>
+<p class="caption" role="heading"><span class="caption-text">Начало работы</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="quickstart.html">Быстрый старт</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Бизнес-домены</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="domains/client.html">Домен: Клиенты</a></li>
+<li class="toctree-l1"><a class="reference internal" href="domains/vehicle.html">Домен: Автомобили</a></li>
+<li class="toctree-l1"><a class="reference internal" href="domains/document.html">Домен: Документы / Заказ-наряды</a></li>
+<li class="toctree-l1"><a class="reference internal" href="domains/payment.html">Домен: Платежи</a></li>
+<li class="toctree-l1"><a class="reference internal" href="domains/service_catalog.html">Домен: Справочник услуг</a></li>
+<li class="toctree-l1"><a class="reference internal" href="domains/organization.html">Домен: Организации</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Интеграции</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api/rocketwash.html">Интеграция с RocketWash</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Инфраструктура</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="api/queryset.html">QuerySet API</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api/connection.html">Подключение и сессии</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api/rocketwash.html">Интеграция с RocketWash</a></li>
 </ul>
 
 <div class="relations">

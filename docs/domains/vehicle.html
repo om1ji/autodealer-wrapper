@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+
+<html lang="ru" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Домен: Автомобили &#8212; документация autodealer 0.0.1</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css?v=27fed22d" />
+    <script src="../_static/documentation_options.js?v=ba58aea8"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/translations.js?v=cd1d70c9"></script>
+    <link rel="index" title="Алфавитный указатель" href="../genindex.html" />
+    <link rel="search" title="Поиск" href="../search.html" />
+    <link rel="next" title="Домен: Документы / Заказ-наряды" href="document.html" />
+    <link rel="prev" title="Домен: Клиенты" href="client.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="id1">
+<h1>Домен: Автомобили<a class="headerlink" href="#id1" title="Ссылка на этот заголовок">¶</a></h1>
+<p>Модели, марки, привязка авто к клиентам.</p>
+<nav class="contents local" id="id2">
+<p class="topic-title">Содержание</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#id3" id="id6">Схема связей</a></p></li>
+<li><p><a class="reference internal" href="#orm" id="id7">ORM-модели</a></p>
+<ul>
+<li><p><a class="reference internal" href="#modellink" id="id8">ModelLink</a></p></li>
+<li><p><a class="reference internal" href="#modeldetail" id="id9">ModelDetail</a></p></li>
+<li><p><a class="reference internal" href="#model-mark" id="id10">Model / Mark</a></p></li>
+<li><p><a class="reference internal" href="#id4" id="id11">Справочники типов</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#actions-client" id="id12">Высокоуровневые действия (<code class="docutils literal notranslate"><span class="pre">actions.client</span></code>)</a></p>
+<ul>
+<li><p><a class="reference internal" href="#get-client-vehicles" id="id13">get_client_vehicles</a></p></li>
+<li><p><a class="reference internal" href="#add-vehicle-to-client" id="id14">add_vehicle_to_client</a></p></li>
+<li><p><a class="reference internal" href="#create-vehicle-for-client" id="id15">create_vehicle_for_client</a></p></li>
+<li><p><a class="reference internal" href="#id5" id="id16">Вспомогательные</a></p></li>
+</ul>
+</li>
+</ul>
+</nav>
+<p>—</p>
+<section id="id3">
+<h2><a class="toc-backref" href="#id6" role="doc-backlink">Схема связей</a><a class="headerlink" href="#id3" title="Ссылка на этот заголовок">¶</a></h2>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>client.directory_registry_id
+    │
+    └── model_link.directory_registry_link_id   ← «авто принадлежит клиенту»
+            │
+            └── model_link.model_detail_id ──► model_detail  (VIN, regno, specs)
+                                                    │
+                                                    └── model.model_id ──► mark
+</pre></div>
+</div>
+<p>—</p>
+</section>
+<section id="orm">
+<h2><a class="toc-backref" href="#id7" role="doc-backlink">ORM-модели</a><a class="headerlink" href="#orm" title="Ссылка на этот заголовок">¶</a></h2>
+<section id="modellink">
+<h3><a class="toc-backref" href="#id8" role="doc-backlink">ModelLink</a><a class="headerlink" href="#modellink" title="Ссылка на этот заголовок">¶</a></h3>
+<p>Таблица <code class="docutils literal notranslate"><span class="pre">model_link</span></code> — связь «клиент ↔ автомобиль».</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 20.0%" />
+<col style="width: 45.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Поле</p></th>
+<th class="head"><p>Тип</p></th>
+<th class="head"><p>Описание</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">model_link_id</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">int</span></code> PK</p></td>
+<td><p>Первичный ключ; передаётся в <code class="docutils literal notranslate"><span class="pre">create_service_order(client_car=...)</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">directory_registry_link_id</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">int</span></code> FK</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">directory_registry_id</span></code> клиента-владельца</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">model_detail_id</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">int</span></code> FK</p></td>
+<td><p>Конкретный экземпляр автомобиля</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">default_car</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">int</span></code></p></td>
+<td><p>1=основное авто клиента</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">hidden</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">int</span></code></p></td>
+<td><p>0=активна</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="modeldetail">
+<h3><a class="toc-backref" href="#id9" role="doc-backlink">ModelDetail</a><a class="headerlink" href="#modeldetail" title="Ссылка на этот заголовок">¶</a></h3>
+<p>Таблица <code class="docutils literal notranslate"><span class="pre">model_detail</span></code> — конкретный экземпляр автомобиля (VIN, номера, характеристики).</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 20.0%" />
+<col style="width: 45.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Поле</p></th>
+<th class="head"><p>Тип</p></th>
+<th class="head"><p>Описание</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">model_detail_id</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">int</span></code> PK</p></td>
+<td><p>Первичный ключ</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">model_id</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">int</span></code> FK</p></td>
+<td><p>Марка + модель</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">regno</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">str(20)</span></code></p></td>
+<td><p>Государственный номер</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">vin</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">str(20)</span></code></p></td>
+<td><p>VIN-номер</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">year_of_production</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">date</span></code></p></td>
+<td><p>Год выпуска</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">color_id</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">int</span></code> FK</p></td>
+<td><p>Цвет кузова</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">car_engine_type_id</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">int</span></code> FK</p></td>
+<td><p>Тип двигателя</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">car_gearbox_type_id</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">int</span></code> FK</p></td>
+<td><p>Тип КПП</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">car_body_type_id</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">int</span></code> FK</p></td>
+<td><p>Тип кузова</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">car_fuel_type_id</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">int</span></code> FK</p></td>
+<td><p>Тип топлива</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">engine_number</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">str(20)</span></code></p></td>
+<td><p>Номер двигателя</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">chassis</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">str(20)</span></code></p></td>
+<td><p>Номер шасси</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">body</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">str(20)</span></code></p></td>
+<td><p>Номер кузова</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="model-mark">
+<h3><a class="toc-backref" href="#id10" role="doc-backlink">Model / Mark</a><a class="headerlink" href="#model-mark" title="Ссылка на этот заголовок">¶</a></h3>
+<p>Таблица <code class="docutils literal notranslate"><span class="pre">model</span></code> — модель автомобиля (напр. «Camry»).
+Таблица <code class="docutils literal notranslate"><span class="pre">mark</span></code> — марка (напр. «Toyota»).</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">autodealer.domain.mark</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mark</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">autodealer.domain.model</span><span class="w"> </span><span class="kn">import</span> <span class="n">Model</span>
+
+<span class="n">toyota</span> <span class="o">=</span> <span class="n">Mark</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">name__icontains</span><span class="o">=</span><span class="s2">&quot;Toyota&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
+<span class="n">camry</span>  <span class="o">=</span> <span class="n">Model</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">mark_id</span><span class="o">=</span><span class="n">toyota</span><span class="o">.</span><span class="n">mark_id</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Camry&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="id4">
+<h3><a class="toc-backref" href="#id11" role="doc-backlink">Справочники типов</a><a class="headerlink" href="#id4" title="Ссылка на этот заголовок">¶</a></h3>
+<p>Таблицы <code class="docutils literal notranslate"><span class="pre">car_body_type</span></code>, <code class="docutils literal notranslate"><span class="pre">car_engine_type</span></code>, <code class="docutils literal notranslate"><span class="pre">car_fuel_type</span></code>,
+<code class="docutils literal notranslate"><span class="pre">car_gearbox_type</span></code>, <code class="docutils literal notranslate"><span class="pre">car_brake_type</span></code> — классификаторы автомобиля.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">autodealer.domain.car_body_type</span><span class="w"> </span><span class="kn">import</span> <span class="n">CarBodyType</span>
+<span class="n">types</span> <span class="o">=</span> <span class="n">CarBodyType</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>—</p>
+</section>
+</section>
+<section id="actions-client">
+<h2><a class="toc-backref" href="#id12" role="doc-backlink">Высокоуровневые действия (<code class="docutils literal notranslate"><span class="pre">actions.client</span></code>)</a><a class="headerlink" href="#actions-client" title="Ссылка на этот заголовок">¶</a></h2>
+<section id="get-client-vehicles">
+<h3><a class="toc-backref" href="#id13" role="doc-backlink">get_client_vehicles</a><a class="headerlink" href="#get-client-vehicles" title="Ссылка на этот заголовок">¶</a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="autodealer.actions.client.get_client_vehicles">
+<span class="sig-prename descclassname"><span class="pre">autodealer.actions.client.</span></span><span class="sig-name descname"><span class="pre">get_client_vehicles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autodealer.actions.client.get_client_vehicles" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Вернуть все автомобили клиента.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>client_id</strong> (<em>int</em>) – PK клиента.</p>
+</dd>
+<dt class="field-even">Результат<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">list[ModelLink]</span></code> — пустой если авто нет.</p>
+</dd>
+</dl>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">autodealer.actions.client</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_client_vehicles</span>
+
+<span class="n">cars</span> <span class="o">=</span> <span class="n">get_client_vehicles</span><span class="p">(</span><span class="mi">920</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">car</span> <span class="ow">in</span> <span class="n">cars</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">car</span><span class="o">.</span><span class="n">model_link_id</span><span class="p">,</span> <span class="n">car</span><span class="o">.</span><span class="n">model_detail_id</span><span class="p">,</span> <span class="n">car</span><span class="o">.</span><span class="n">default_car</span><span class="p">)</span>
+
+<span class="c1"># Передать в create_service_order:</span>
+<span class="n">doc_id</span> <span class="o">=</span> <span class="n">create_service_order</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">client_car</span><span class="o">=</span><span class="n">cars</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">model_link_id</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+<section id="add-vehicle-to-client">
+<h3><a class="toc-backref" href="#id14" role="doc-backlink">add_vehicle_to_client</a><a class="headerlink" href="#add-vehicle-to-client" title="Ссылка на этот заголовок">¶</a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="autodealer.actions.client.add_vehicle_to_client">
+<span class="sig-prename descclassname"><span class="pre">autodealer.actions.client.</span></span><span class="sig-name descname"><span class="pre">add_vehicle_to_client</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">make</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_name</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">regno</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_car</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_by_user_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autodealer.actions.client.add_vehicle_to_client" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Добавить авто клиенту по имени марки/модели. Идемпотентно по <code class="docutils literal notranslate"><span class="pre">regno</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Результат<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">model_detail_id</span></code>.</p>
+</dd>
+</dl>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">autodealer.actions.client</span><span class="w"> </span><span class="kn">import</span> <span class="n">add_vehicle_to_client</span>
+
+<span class="n">md_id</span> <span class="o">=</span> <span class="n">add_vehicle_to_client</span><span class="p">(</span>
+    <span class="n">client_id</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>
+    <span class="n">make</span><span class="o">=</span><span class="s2">&quot;Toyota&quot;</span><span class="p">,</span>
+    <span class="n">model_name</span><span class="o">=</span><span class="s2">&quot;Camry&quot;</span><span class="p">,</span>
+    <span class="n">regno</span><span class="o">=</span><span class="s2">&quot;А001ВС77&quot;</span><span class="p">,</span>
+    <span class="n">year</span><span class="o">=</span><span class="mi">2020</span><span class="p">,</span>
+    <span class="n">color</span><span class="o">=</span><span class="s2">&quot;Белый&quot;</span><span class="p">,</span>
+    <span class="n">default_car</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+<section id="create-vehicle-for-client">
+<h3><a class="toc-backref" href="#id15" role="doc-backlink">create_vehicle_for_client</a><a class="headerlink" href="#create-vehicle-for-client" title="Ссылка на этот заголовок">¶</a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="autodealer.actions.client.create_vehicle_for_client">
+<span class="sig-prename descclassname"><span class="pre">autodealer.actions.client.</span></span><span class="sig-name descname"><span class="pre">create_vehicle_for_client</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">client_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">regno</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year_of_production</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">car_engine_type_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">car_gearbox_type_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">car_body_type_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">car_fuel_type_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">engine_number</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chassis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">body</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">notes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_car</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_by_user_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autodealer.actions.client.create_vehicle_for_client" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Создать авто напрямую через <code class="docutils literal notranslate"><span class="pre">model_id</span></code> (если марка/модель уже известны).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Результат<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Экземпляр <code class="xref py py-class docutils literal notranslate"><span class="pre">ModelLink</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="id5">
+<h3><a class="toc-backref" href="#id16" role="doc-backlink">Вспомогательные</a><a class="headerlink" href="#id5" title="Ссылка на этот заголовок">¶</a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="autodealer.actions.client.get_or_create_mark">
+<span class="sig-prename descclassname"><span class="pre">autodealer.actions.client.</span></span><span class="sig-name descname"><span class="pre">get_or_create_mark</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autodealer.actions.client.get_or_create_mark" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Найти или создать марку. Возвращает <code class="docutils literal notranslate"><span class="pre">mark_id</span></code>.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="autodealer.actions.client.get_or_create_model">
+<span class="sig-prename descclassname"><span class="pre">autodealer.actions.client.</span></span><span class="sig-name descname"><span class="pre">get_or_create_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mark_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autodealer.actions.client.get_or_create_model" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Найти или создать модель. Возвращает <code class="docutils literal notranslate"><span class="pre">model_id</span></code>.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="autodealer.actions.client.get_or_create_color">
+<span class="sig-prename descclassname"><span class="pre">autodealer.actions.client.</span></span><span class="sig-name descname"><span class="pre">get_or_create_color</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autodealer.actions.client.get_or_create_color" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Найти или создать цвет. Возвращает <code class="docutils literal notranslate"><span class="pre">color_id</span></code> или <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="autodealer.actions.client.find_vehicle_by_regno">
+<span class="sig-prename descclassname"><span class="pre">autodealer.actions.client.</span></span><span class="sig-name descname"><span class="pre">find_vehicle_by_regno</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">regno</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autodealer.actions.client.find_vehicle_by_regno" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Поиск по госномеру. Возвращает <code class="docutils literal notranslate"><span class="pre">model_detail_id</span></code> или <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="autodealer.actions.client.find_vehicle_by_vin">
+<span class="sig-prename descclassname"><span class="pre">autodealer.actions.client.</span></span><span class="sig-name descname"><span class="pre">find_vehicle_by_vin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vin</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autodealer.actions.client.find_vehicle_by_vin" title="Ссылка на это определение">¶</a></dt>
+<dd><p>Поиск по VIN. Возвращает <code class="docutils literal notranslate"><span class="pre">model_detail_id</span></code> или <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd></dl>
+
+</section>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">autodealer</a></h1>
+
+
+
+<p class="blurb">Python ORM-обёртка для базы данных АвтоДилер (Firebird)</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=om1ji&repo=autodealer-wrapper&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Искать" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Навигация</h3>
+<p class="caption" role="heading"><span class="caption-text">Начало работы</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart.html">Быстрый старт</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Бизнес-домены</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="client.html">Домен: Клиенты</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Домен: Автомобили</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#id3">Схема связей</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#orm">ORM-модели</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#actions-client">Высокоуровневые действия (<code class="docutils literal notranslate"><span class="pre">actions.client</span></code>)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="document.html">Домен: Документы / Заказ-наряды</a></li>
+<li class="toctree-l1"><a class="reference internal" href="payment.html">Домен: Платежи</a></li>
+<li class="toctree-l1"><a class="reference internal" href="service_catalog.html">Домен: Справочник услуг</a></li>
+<li class="toctree-l1"><a class="reference internal" href="organization.html">Домен: Организации</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Интеграции</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api/rocketwash.html">Интеграция с RocketWash</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Инфраструктура</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api/queryset.html">QuerySet API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/connection.html">Подключение и сессии</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="client.html" title="предыдущая глава">Домен: Клиенты</a></li>
+      <li>Next: <a href="document.html" title="следующая глава">Домен: Документы / Заказ-наряды</a></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2025, Om1ji.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 8.2.3</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="../_sources/domains/vehicle.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
