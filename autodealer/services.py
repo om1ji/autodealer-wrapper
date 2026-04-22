@@ -419,17 +419,36 @@ def get_or_create_service(
 # ---------------------------------------------------------------------------
 
 _DOCUMENT_TYPE_SERVICE_ORDER = 11  # «Заказ-наряд»
+_PRICE_NORM_DEFAULT = 5            # «норма по умолчанию» (price_norm.price = 1)
+_DOCUMENT_OUT_FLAG_DEFAULT = 2     # document_out.flag — 285/285 ручных = 2
+_DOC_SERVICE_DETAIL_END_SECTION = 1  # doc_date_end_section_link — 284/284 = 1
+_WORK_SOURCE_COMPLEX = 3           # service_work.work_source — из service_complex_work
+_DEFAULT_GUARANTE_TEXT = (
+    "Исполнитель несет гарантийные обязательства при условии соблюдения "
+    "потребителем правил эксплуатации и рекомендаций исполнителя по "
+    "использованию результатов работы (услуги)."
+)
 
 
 class ServiceOrderItem:
     """Одна строка услуги в заказ-наряде.
 
+    Поддерживаются два режима записи в ``service_work``:
+
+    - **Справочный** (рекомендуемый): задан ``complex_work_id``. Тогда
+      цена пишется в ``service_work.price``, ``time_value = None``,
+      ``work_source = 3``, ``rt_work_id = complex_work_id``. ``name``
+      стоит передать каноническим (``"Стандарт"``, ``"Комплекс"``) — так
+      же, как в ``service_complex_work.name``.
+
+    - **Ручной** (fallback, когда резолва нет): ``complex_work_id = None``.
+      Цена пишется в ``service_work.time_value``, ``price = None``,
+      ``work_source = NULL``. UI АвтоДилера всё равно отобразит сумму
+      при ``price_norm = 1``, но без связи со справочником.
+
     Attributes:
         name: Название работы / услуги.
-        price: Цена в рублях за единицу. При создании документа попадает
-            в ``service_work.time_value`` — АвтоДилер для «ручных» записей
-            (без привязки к справочнику) показывает цену именно из этого
-            поля в сочетании с ``price_norm=1``.
+        price: Цена в рублях за единицу.
         time_value: Длительность (минуты) — справочная информация, в БД
             **не сохраняется**: в таблице ``service_work`` нет отдельного
             поля под длительность. Оставлено в интерфейсе для совместимости
@@ -437,6 +456,8 @@ class ServiceOrderItem:
         quantity: Количество. Умножается на цену при расчёте суммы документа.
         external_id: Внешний идентификатор (например, ``rw_service_id``).
             Сохраняется в ``service_work.external_id``.
+        complex_work_id: PK в :class:`service_complex_work` — если задан,
+            включает «справочный» режим записи (см. выше).
     """
 
     def __init__(
@@ -446,12 +467,14 @@ class ServiceOrderItem:
         time_value: float = 0.0,
         quantity: int = 1,
         external_id: Optional[str] = None,
+        complex_work_id: Optional[int] = None,
     ) -> None:
         self.name = name
         self.price = price
         self.time_value = time_value
         self.quantity = quantity
         self.external_id = external_id
+        self.complex_work_id = complex_work_id
 
 
 class ServiceOrder:
@@ -631,10 +654,17 @@ def create_service_order(
 
     with session_scope() as session:
         # 1. document_out
+        # ВАЖНО: summa на document_out — это сумма ТОВАРОВ (не услуг).
+        # У ручных заказ-нарядов автомойки почти всегда 0. Сумма услуг
+        # уходит отдельно в document_service_detail.summa_work. UI
+        # складывает оба поля, поэтому здесь нельзя дублировать сумму.
+        # Колонка NOT NULL — NULL не принимается, пишем 0.
         doc_out = DocumentOut(
             document_type_id=_DOCUMENT_TYPE_SERVICE_ORDER,
             client_id=client_id,
-            summa=summa,
+            summa=0,
+            summa_bonus=0,
+            flag=_DOCUMENT_OUT_FLAG_DEFAULT,
             date_accept=start_dt,
             organization_id=organization_id,
         )
@@ -677,33 +707,61 @@ def create_service_order(
         session.add(doc_header)
         session.flush()
 
-        # 4. document_service_detail — всегда создаём, привязка авто опциональна
+        # 4. document_service_detail — всегда создаём, привязка авто обязательна.
+        # price_norm_id=5 — «норма по умолчанию» (price=1), совпадает с тем,
+        # что проставляет UI АвтоДилера для ручных заказ-нарядов АвтоМойки.
+        # discount_work=0, summa_bonus=0, doc_date_end_section_link=1,
+        # guarante — дефолты ручных документов (100% заполняемость).
         session.add(
             DocumentServiceDetail(
                 document_out_header_id=doc_header.document_out_header_id,
                 model_link_id=client_car,
                 date_start=start_dt,
                 summa_work=summa,
+                price_norm_id=_PRICE_NORM_DEFAULT,
+                discount_work=0.0,
+                summa_bonus=0,
+                doc_date_end_section_link=_DOC_SERVICE_DETAIL_END_SECTION,
+                guarante=_DEFAULT_GUARANTE_TEXT,
             )
         )
 
         # 5. service_work — строки услуг.
-        # В АвтоДилере для «ручных» позиций (без rt_work_id/work_source) UI
-        # отображает цену из поля time_value при price_norm=1, а не из price.
-        # Длительность из ServiceOrderItem.time_value в БД не сохраняется —
-        # модель service_work не содержит отдельного поля под «минуты работы».
+        # Два режима (см. ServiceOrderItem):
+        # - справочный (complex_work_id задан): price = item.price,
+        #   time_value = NULL, work_source = 3, rt_work_id = complex_work_id.
+        # - ручной: цена пишется в time_value, price = NULL (иначе UI
+        #   показывает 0), price_norm = 1.
         for pos, item in enumerate(items, 1):
-            session.add(
-                ServiceWork(
-                    document_out_id=doc_out.document_out_id,
-                    name=item.name,
-                    time_value=item.price,
-                    price_norm=1,
-                    quantity=item.quantity,
-                    position_number=pos,
-                    external_id=item.external_id or None,
-                )
+            sw_kwargs: dict = dict(
+                document_out_id=doc_out.document_out_id,
+                name=item.name,
+                price_norm=1,
+                quantity=item.quantity,
+                position_number=pos,
+                external_id=item.external_id or None,
             )
+            if item.complex_work_id is not None:
+                sw_kwargs["price"] = item.price
+                sw_kwargs["work_source"] = _WORK_SOURCE_COMPLEX
+                sw_kwargs["rt_work_id"] = item.complex_work_id
+            else:
+                sw_kwargs["time_value"] = item.price
+            session.add(ServiceWork(**sw_kwargs))
+
+        # 6. document_cargo — реквизиты плательщика.
+        # У всех ручных заказ-нарядов АвтоМойки payer_id = client_id,
+        # update_sender/receiver/payer = 1, use_main_payment = 0.
+        session.execute(
+            text(
+                "INSERT INTO document_cargo"
+                " (document_out_id, payer_id,"
+                "  update_sender, update_receiver, update_payer,"
+                "  use_main_payment)"
+                " VALUES (:doc, :client, 1, 1, 1, 0)"
+            ),
+            {"doc": doc_out.document_out_id, "client": client_id},
+        )
 
         document_out_id = doc_out.document_out_id
 
@@ -722,8 +780,8 @@ def delete_service_order(
 
     **Hard-delete** (``hard=True``): физически удаляет все связанные записи
     в обратном порядке создания:
-    ``service_work`` → ``document_service_detail`` → ``document_out_header``
-    → ``document_registry`` → ``document_out``.
+    ``document_cargo`` → ``service_work`` → ``document_service_detail``
+    → ``document_out_header`` → ``document_registry`` → ``document_out``.
 
     Перед удалением заказ-наряда автоматически сносятся все **ботовые**
     платежи (помеченные :data:`~autodealer.actions.payment.BOT_NOTE_MARKER`
@@ -806,6 +864,10 @@ def delete_service_order(
         for pid in bot_payment_ids:
             _delete_payment_rows(session, pid)
 
+        session.execute(
+            text("DELETE FROM document_cargo WHERE document_out_id = :id"),
+            {"id": document_out_id},
+        )
         session.execute(
             text("DELETE FROM service_work WHERE document_out_id = :id"),
             {"id": document_out_id},

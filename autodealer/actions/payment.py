@@ -12,6 +12,12 @@ from sqlalchemy import bindparam, text
 from autodealer.connection import session_scope
 
 _ACCOUNTING_ITEM_CLIENT_PAYMENT = 3  # «Поступление от клиента»
+_SYSTEM_USER_ID = 1  # Системный пользователь по умолчанию
+
+# Типы действий в payment_action (журнал аудита)
+_PAYMENT_ACTION_CREATE = 0
+_PAYMENT_ACTION_UPDATE = 1
+_PAYMENT_ACTION_DELETE = -1
 
 BOT_NOTE_MARKER = "Добавлено ботом"
 
@@ -176,18 +182,24 @@ def create_payment(
     payment_type_id: int,
     payment_date: Optional[datetime] = None,
     notes: Optional[str] = None,
+    created_by_user_id: int = _SYSTEM_USER_ID,
 ) -> int:
     """Создать документ оплаты для заказ-наряда.
 
     Атомарно создаёт цепочку:
 
-    1. ``payment``                — запись платежа (сумма, способ, кошелёк).
-    2. ``payment_out``            — привязка платежа к ``document_out``.
-    3. ``payment_document``       — привязка платежа к ``document_registry``.
-    4. ``money_document_detail``  — бухгалтерская проводка
-       (``accounting_item_id=3`` «Поступление от клиента»).
-    5. ``money_document_payment`` — связь проводки с платежом.
-    6. Обновляет ``document_out.date_payment``.
+    1. ``payment``         — запись платежа (сумма, способ, кошелёк).
+    2. ``payment_out``     — привязка платежа к ``document_out``.
+    3. ``payment_action``  — запись в журнал аудита (``action_type=0``).
+    4. Обновляет ``document_out.date_payment``.
+
+    .. note::
+
+       Бухгалтерские проводки (``payment_document``, ``money_document_detail``,
+       ``money_document_payment``) намеренно **не создаются** — ручные
+       заказ-наряды АвтоМойки тоже их не создают (0/272 в проде). Эти
+       проводки генерируются в другом месте (закрытие кассовой смены,
+       выгрузка в 1С и т.п.). Дублирование приводит к двойному учёту.
 
     Args:
         document_out_id: PK заказ-наряда (из :func:`~autodealer.services.create_service_order`).
@@ -199,6 +211,8 @@ def create_payment(
         notes: Примечание к платежу. К любому значению автоматически
             добавляется маркер :data:`BOT_NOTE_MARKER` (``"Добавлено ботом"``),
             чтобы отличать платежи бота от ручных при каскадном удалении.
+        created_by_user_id: user_id, записываемый в ``payment_action.user_id``.
+            По умолчанию — системный.
 
     Returns:
         ``payment_id`` созданного платежа.
@@ -219,9 +233,6 @@ def create_payment(
     """
     from autodealer.domain.payment import Payment
     from autodealer.domain.payment_out import PaymentOut
-    from autodealer.domain.payment_document import PaymentDocument
-    from autodealer.domain.money_document_detail import MoneyDocumentDetail
-    from autodealer.domain.money_document_payment import MoneyDocumentPayment
 
     pay_dt = payment_date or datetime.now()
 
@@ -253,24 +264,25 @@ def create_payment(
         payment_id = pay.payment_id
 
         session.add(PaymentOut(document_out_id=document_out_id, payment_id=payment_id))
-        session.add(
-            PaymentDocument(document_registry_id=doc_reg_id, payment_id=payment_id)
-        )
 
-        mdd = MoneyDocumentDetail(
-            document_out_id=document_out_id,
-            wallet_id=wallet_id,
-            payment_type_id=payment_type_id,
-            accounting_item_id=_ACCOUNTING_ITEM_CLIENT_PAYMENT,
-        )
-        session.add(mdd)
-        session.flush()
-
-        session.add(
-            MoneyDocumentPayment(
-                money_document_detail_id=mdd.money_document_detail_id,
-                payment_id=payment_id,
-            )
+        session.execute(
+            text(
+                "INSERT INTO payment_action"
+                " (payment_id, user_id, payment_type_id, action_datetime,"
+                "  summa, document_out_id, action_type, payment_date)"
+                " VALUES (:pid, :uid, :ptype, :now, :summa, :doc,"
+                "         :atype, :pdate)"
+            ),
+            {
+                "pid": payment_id,
+                "uid": created_by_user_id,
+                "ptype": payment_type_id,
+                "now": datetime.now(),
+                "summa": summa,
+                "doc": document_out_id,
+                "atype": _PAYMENT_ACTION_CREATE,
+                "pdate": pay_dt,
+            },
         )
 
         session.execute(
@@ -288,7 +300,12 @@ def _delete_payment_rows(session, payment_id: int) -> None:
     """Удалить все связанные с платежом записи в рамках переданной сессии.
 
     Порядок: ``money_document_payment`` → ``money_document_detail``
-    → ``payment_document`` → ``payment_out`` → ``payment``.
+    → ``payment_document`` → ``payment_action`` → ``payment_out`` → ``payment``.
+
+    Первые три таблицы текущим :func:`create_payment` уже не создаются
+    (см. её docstring), но DELETE'ы оставлены — чтобы функция могла
+    удалять старые платежи, созданные до этого изменения, а также
+    импортированные из других интеграций.
 
     Не проверяет существование платежа и не управляет транзакцией —
     вызывающий код должен сделать это сам. Используется из
@@ -321,6 +338,10 @@ def _delete_payment_rows(session, payment_id: int) -> None:
         )
     session.execute(
         text("DELETE FROM payment_document WHERE payment_id = :pid"),
+        {"pid": payment_id},
+    )
+    session.execute(
+        text("DELETE FROM payment_action WHERE payment_id = :pid"),
         {"pid": payment_id},
     )
     session.execute(

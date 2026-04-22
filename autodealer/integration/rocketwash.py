@@ -5,6 +5,7 @@ Maps RocketWash entities to AutoDealer domain objects.
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
@@ -74,13 +75,38 @@ _COMPLEX_WORK_TREE_ID_MAPPING: dict[str, int] = {
     "Кат.04": 17,
 }
 
-# Mapping: RocketWash car_type_id → category name
+# Mapping: RocketWash car_type_id → category name.
+# В базе RW встречаются и устаревшие id (напр. 3 / 27 / 28 / 29) — они
+# соответствуют тем же категориям, что и актуальные (36/37/38/35).
 _CAR_TYPE_ID_TO_CATEGORY: dict[int, str] = {
-    36: "Кат.01",
-    37: "Кат.02",
-    38: "Кат.03",
-    35: "Кат.04",
+    36: "Кат.01", 3: "Кат.01",
+    37: "Кат.02", 27: "Кат.02",
+    38: "Кат.03", 28: "Кат.03",
+    35: "Кат.04", 29: "Кат.04",
 }
+
+# Регэксп для нормализации строковой метки категории из RW:
+# "Кат. 2" / "Кат.2" / "Кат 02" / "Кат.02" → "Кат.02".
+_CATEGORY_STRING_RE = re.compile(r"Кат\.?\s*(\d+)")
+
+
+def _normalize_category_string(label: Optional[str]) -> Optional[str]:
+    """Привести метку категории из RW к канонической форме ``Кат.NN``.
+
+    >>> _normalize_category_string("Кат. 2")
+    'Кат.02'
+    >>> _normalize_category_string("Кат.02")
+    'Кат.02'
+    >>> _normalize_category_string("чушь")  # нет совпадения
+
+    Возвращает ``None``, если строка не содержит цифры категории.
+    """
+    if not label:
+        return None
+    m = _CATEGORY_STRING_RE.search(label)
+    if not m:
+        return None
+    return f"Кат.{int(m.group(1)):02d}"
 
 
 # ---------------------------------------------------------------------------
@@ -364,6 +390,95 @@ def get_car_category_by_type_id(car_type_id: int) -> str:
     if car_type_id not in _CAR_TYPE_ID_TO_CATEGORY:
         raise KeyError(f"Unknown car_type_id: {car_type_id}")
     return _CAR_TYPE_ID_TO_CATEGORY[car_type_id]
+
+
+def resolve_car_category(
+    car_type_id: Optional[int] = None,
+    car_type: Optional[str] = None,
+) -> Optional[str]:
+    """Попытаться определить категорию АвтоДилера по RW car_type_id / строке.
+
+    Сначала ищет по id в :data:`_CAR_TYPE_ID_TO_CATEGORY`. Если id неизвестен
+    (RW иногда присылает устаревшие id, которых нет в справочнике
+    ``car_types``), нормализует строку ``car_type`` (напр. ``"Кат. 2"`` →
+    ``"Кат.02"``) и проверяет её по :data:`_COMPLEX_WORK_TREE_ID_MAPPING`.
+
+    Возвращает ``None``, если не удалось ни по id, ни по строке.
+
+    Example::
+
+        resolve_car_category(27, "Кат. 2")  # → "Кат.02"
+        resolve_car_category(99, "Кат.02")  # → "Кат.02" (fallback по строке)
+        resolve_car_category(99, "чушь")    # → None
+    """
+    if car_type_id is not None and car_type_id in _CAR_TYPE_ID_TO_CATEGORY:
+        return _CAR_TYPE_ID_TO_CATEGORY[car_type_id]
+    normalized = _normalize_category_string(car_type)
+    if normalized and normalized in _COMPLEX_WORK_TREE_ID_MAPPING:
+        return normalized
+    return None
+
+
+def resolve_complex_work(
+    rw_service_id: int,
+    car_type_id: Optional[int] = None,
+    car_type: Optional[str] = None,
+) -> Optional[tuple[int, str, float]]:
+    """Найти запись в ``service_complex_work`` по услуге RW и категории авто.
+
+    Алгоритм:
+
+    1. ``rw_service_id`` → канонический name через :data:`_SERVICE_ID_TO_CW_NAME`.
+    2. ``car_type_id`` / ``car_type`` → категория через :func:`resolve_car_category`.
+    3. Категория → ``service_complex_work_tree_id``.
+    4. В дереве ищется ``service_complex_work`` с совпадающим ``name``.
+
+    Args:
+        rw_service_id: ``services.id`` из RocketWash.
+        car_type_id: ``reservations.car_type_id`` (актуальный 35/36/37/38
+            или устаревший 3/27/28/29).
+        car_type: Строка ``reservations.car_type`` (``"Кат. 2"`` и т.п.) —
+            используется как fallback, когда ``car_type_id`` неизвестен.
+
+    Returns:
+        Кортеж ``(service_complex_work_id, name, price)`` или ``None``,
+        если услуга/категория не смаппированы, либо соответствующая
+        запись в справочнике отсутствует.
+
+    Example::
+
+        resolve_complex_work(821459, car_type_id=38)
+        # → (101, "Стандарт", 1400.0)   # для Кат.03
+    """
+    from autodealer.connection import session_scope
+    from sqlalchemy import text
+
+    cw_name = _SERVICE_ID_TO_CW_NAME.get(rw_service_id)
+    if cw_name is None:
+        return None
+
+    category = resolve_car_category(car_type_id, car_type)
+    if category is None:
+        return None
+
+    tree_id = _COMPLEX_WORK_TREE_ID_MAPPING[category]
+
+    with session_scope() as s:
+        row = s.execute(
+            text(
+                "SELECT scw.service_complex_work_id, scw.name, scw.price"
+                " FROM service_complex_work scw"
+                " JOIN service_complex_work_item scwi"
+                "      ON scwi.service_complex_work_item_id = scw.service_complex_work_item_id"
+                " WHERE scwi.service_complex_work_tree_id = :tid"
+                "   AND scw.name = :nm"
+                " ROWS 1"
+            ),
+            {"tid": tree_id, "nm": cw_name},
+        ).mappings().first()
+    if row is None:
+        return None
+    return (int(row["service_complex_work_id"]), row["name"], float(row["price"] or 0))
 
 
 # ---------------------------------------------------------------------------
