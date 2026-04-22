@@ -422,7 +422,22 @@ _DOCUMENT_TYPE_SERVICE_ORDER = 11  # «Заказ-наряд»
 
 
 class ServiceOrderItem:
-    """Одна строка услуги в заказ-наряде."""
+    """Одна строка услуги в заказ-наряде.
+
+    Attributes:
+        name: Название работы / услуги.
+        price: Цена в рублях за единицу. При создании документа попадает
+            в ``service_work.time_value`` — АвтоДилер для «ручных» записей
+            (без привязки к справочнику) показывает цену именно из этого
+            поля в сочетании с ``price_norm=1``.
+        time_value: Длительность (минуты) — справочная информация, в БД
+            **не сохраняется**: в таблице ``service_work`` нет отдельного
+            поля под длительность. Оставлено в интерфейсе для совместимости
+            и отладки.
+        quantity: Количество. Умножается на цену при расчёте суммы документа.
+        external_id: Внешний идентификатор (например, ``rw_service_id``).
+            Сохраняется в ``service_work.external_id``.
+    """
 
     def __init__(
         self,
@@ -546,7 +561,7 @@ def create_service_order(
     items: list[ServiceOrderItem],
     document_out_tree_id: int,
     organization_id: int,
-    client_car: Optional[int] = None,
+    client_car: int,
     date_start: datetime,
     date_finish: datetime,
     created_by_user_id: int = _SYSTEM_USER_ID,
@@ -564,12 +579,20 @@ def create_service_order(
     Args:
         client_id: PK клиента в Firebird.
         items: Список услуг (:class:`ServiceOrderItem`).
-        client_car: PK из ``model_link`` — привязка конкретного авто к документу.
-        date_accept: Дата/время приёма авто (``datetime``). По умолчанию — сейчас.
+        document_out_tree_id: Папка документов (FK → ``document_out_tree``).
+        organization_id: FK организации.
+        client_car: PK из ``model_link`` — обязательная привязка авто клиента.
+        date_start: Дата/время приёма авто (начало работ).
+        date_finish: Дата/время окончания работ.
         created_by_user_id: user_id исполнителя (записывается в ``document_out_header``).
+        notes: Примечание к заказ-наряду.
+        service_order_suffix: Суффикс номера документа.
 
     Returns:
         ``document_out_id`` созданного заказ-наряда.
+
+    Raises:
+        ValueError: Если ``items`` пустой или ``client_car`` не передан.
 
     Example::
 
@@ -577,6 +600,10 @@ def create_service_order(
         doc_id = create_service_order(
             client_id=42,
             client_car=7,
+            organization_id=1,
+            document_out_tree_id=3,
+            date_start=datetime.now(),
+            date_finish=datetime.now() + timedelta(hours=1),
             items=[
                 ServiceOrderItem("Экспресс мойка", price=600, time_value=20),
                 ServiceOrderItem("Чернение резины", price=150, time_value=10),
@@ -592,8 +619,14 @@ def create_service_order(
 
     if not items:
         raise ValueError("items не может быть пустым")
+    if client_car is None:
+        raise ValueError(
+            "client_car обязателен — заказ-наряд нельзя создать без"
+            " привязки авто клиента (model_link_id)"
+        )
 
-    finish_dt = date_finish or _dt.now()
+    start_dt = date_start or _dt.now()
+    finish_dt = date_finish or start_dt
     summa = sum(i.price * i.quantity for i in items)
 
     with session_scope() as session:
@@ -602,7 +635,7 @@ def create_service_order(
             document_type_id=_DOCUMENT_TYPE_SERVICE_ORDER,
             client_id=client_id,
             summa=summa,
-            date_accept=finish_dt,
+            date_accept=start_dt,
             organization_id=organization_id,
         )
         session.add(doc_out)
@@ -613,8 +646,8 @@ def create_service_order(
             metatable_id=_METATABLE_DOCUMENT_OUT,
             create_user_id=created_by_user_id,
             change_user_id=created_by_user_id,
-            create_date=date_start,
-            change_date=date_start,
+            create_date=start_dt,
+            change_date=start_dt,
             document_type_id_cache=_DOCUMENT_TYPE_SERVICE_ORDER,
         )
         session.add(doc_reg)
@@ -634,7 +667,7 @@ def create_service_order(
             document_out_tree_id=document_out_tree_id,
             document_registry_id=doc_reg.document_registry_id,
             user_id=created_by_user_id,
-            date_create=finish_dt,
+            date_create=start_dt,
             notes=notes,
             number=next_number,
             suffix=service_order_suffix,
@@ -644,23 +677,28 @@ def create_service_order(
         session.add(doc_header)
         session.flush()
 
-        # 4. document_service_detail (привязка авто, опционально)
-        if client_car is not None:
-            session.add(
-                DocumentServiceDetail(
-                    document_out_header_id=doc_header.document_out_header_id,
-                    model_link_id=client_car,
-                )
+        # 4. document_service_detail — всегда создаём, привязка авто опциональна
+        session.add(
+            DocumentServiceDetail(
+                document_out_header_id=doc_header.document_out_header_id,
+                model_link_id=client_car,
+                date_start=start_dt,
+                summa_work=summa,
             )
+        )
 
-        # 5. service_work — строки услуг
+        # 5. service_work — строки услуг.
+        # В АвтоДилере для «ручных» позиций (без rt_work_id/work_source) UI
+        # отображает цену из поля time_value при price_norm=1, а не из price.
+        # Длительность из ServiceOrderItem.time_value в БД не сохраняется —
+        # модель service_work не содержит отдельного поля под «минуты работы».
         for pos, item in enumerate(items, 1):
             session.add(
                 ServiceWork(
                     document_out_id=doc_out.document_out_id,
                     name=item.name,
-                    price=item.price,
-                    time_value=item.time_value,
+                    time_value=item.price,
+                    price_norm=1,
                     quantity=item.quantity,
                     position_number=pos,
                     external_id=item.external_id or None,
@@ -670,6 +708,189 @@ def create_service_order(
         document_out_id = doc_out.document_out_id
 
     return document_out_id
+
+
+def delete_service_order(
+    document_out_id: int,
+    *,
+    hard: bool = False,
+) -> None:
+    """Удалить заказ-наряд.
+
+    **Soft-delete** (по умолчанию): ставит ``document_out_header.state = -1``
+    («Удалён») — документ скрывается из UI АвтоДилера, но запись остаётся в БД.
+
+    **Hard-delete** (``hard=True``): физически удаляет все связанные записи
+    в обратном порядке создания:
+    ``service_work`` → ``document_service_detail`` → ``document_out_header``
+    → ``document_registry`` → ``document_out``.
+
+    Перед удалением заказ-наряда автоматически сносятся все **ботовые**
+    платежи (помеченные :data:`~autodealer.actions.payment.BOT_NOTE_MARKER`
+    в ``payment.notes``) через :func:`~autodealer.actions.payment.delete_payment`.
+    Если на документе висят **ручные** платежи (без маркера) — операция
+    отказывает: их нужно обработать вручную.
+
+    Args:
+        document_out_id: PK заказ-наряда.
+        hard: Если ``True`` — физическое удаление из БД.
+
+    Raises:
+        ValueError: Если заказ-наряд не найден; при ``hard=True`` также
+            если к документу привязаны ручные (не ботовые) платежи.
+
+    Example::
+
+        from autodealer.services import delete_service_order
+
+        delete_service_order(42)              # soft: state = -1
+        delete_service_order(42, hard=True)   # полное удаление из БД
+    """
+    with session_scope() as session:
+        header = (
+            session.execute(
+                text(
+                    "SELECT document_out_header_id, document_registry_id"
+                    " FROM document_out_header WHERE document_out_id = :id"
+                ),
+                {"id": document_out_id},
+            )
+            .mappings()
+            .first()
+        )
+
+        if header is None:
+            raise ValueError(
+                f"Заказ-наряд document_out_id={document_out_id} не найден"
+            )
+
+        if not hard:
+            session.execute(
+                text(
+                    "UPDATE document_out_header SET state = :state"
+                    " WHERE document_out_id = :id"
+                ),
+                {"state": _DOCUMENT_STATE["Удалён"], "id": document_out_id},
+            )
+            return
+
+        from autodealer.actions.payment import (
+            BOT_NOTE_MARKER,
+            _delete_payment_rows,
+        )
+
+        payments = session.execute(
+            text(
+                "SELECT p.payment_id, p.notes FROM payment_out po"
+                " JOIN payment p ON p.payment_id = po.payment_id"
+                " WHERE po.document_out_id = :id"
+            ),
+            {"id": document_out_id},
+        ).all()
+
+        bot_payment_ids: list[int] = []
+        manual_payment_ids: list[int] = []
+        for payment_id, notes in payments:
+            if notes and BOT_NOTE_MARKER in notes:
+                bot_payment_ids.append(payment_id)
+            else:
+                manual_payment_ids.append(payment_id)
+
+        if manual_payment_ids:
+            raise ValueError(
+                f"Нельзя удалить заказ-наряд {document_out_id}:"
+                f" есть ручные платежи {manual_payment_ids}."
+                " Удали их вручную через delete_payment()."
+            )
+
+        for pid in bot_payment_ids:
+            _delete_payment_rows(session, pid)
+
+        session.execute(
+            text("DELETE FROM service_work WHERE document_out_id = :id"),
+            {"id": document_out_id},
+        )
+        session.execute(
+            text(
+                "DELETE FROM document_service_detail"
+                " WHERE document_out_header_id = :hid"
+            ),
+            {"hid": header["document_out_header_id"]},
+        )
+        session.execute(
+            text(
+                "DELETE FROM document_out_header"
+                " WHERE document_out_header_id = :hid"
+            ),
+            {"hid": header["document_out_header_id"]},
+        )
+        session.execute(
+            text("DELETE FROM document_registry WHERE document_registry_id = :rid"),
+            {"rid": header["document_registry_id"]},
+        )
+        session.execute(
+            text("DELETE FROM document_out WHERE document_out_id = :id"),
+            {"id": document_out_id},
+        )
+
+
+def restore_service_order(
+    document_out_id: int,
+    *,
+    state: int = _DOCUMENT_STATE["Черновик"],
+) -> None:
+    """Восстановить soft-deleted заказ-наряд.
+
+    Парная операция к :func:`delete_service_order` (с ``hard=False``):
+    переводит ``document_out_header.state`` из ``-1`` («Удалён») обратно
+    в рабочее состояние.
+
+    Отказывает, если документ не найден или не находится в состоянии ``-1`` —
+    чтобы случайно не понизить/поднять state живого документа.
+
+    Args:
+        document_out_id: PK заказ-наряда.
+        state: Целевой ``state``. По умолчанию ``2`` («Черновик»).
+            Можно передать ``4`` («Оформлен»), если нужно сразу
+            восстановить документ как завершённый.
+
+    Raises:
+        ValueError: Если документ не найден или его ``state != -1``.
+
+    Example::
+
+        from autodealer.services import delete_service_order, restore_service_order
+
+        delete_service_order(42)           # soft: state = -1
+        restore_service_order(42)          # state = 2 (Черновик)
+        restore_service_order(42, state=4) # state = 4 (Оформлен)
+    """
+    with session_scope() as session:
+        current_state = session.execute(
+            text(
+                "SELECT state FROM document_out_header"
+                " WHERE document_out_id = :id"
+            ),
+            {"id": document_out_id},
+        ).scalar()
+
+        if current_state is None:
+            raise ValueError(
+                f"Заказ-наряд document_out_id={document_out_id} не найден"
+            )
+        if current_state != _DOCUMENT_STATE["Удалён"]:
+            raise ValueError(
+                f"Заказ-наряд document_out_id={document_out_id} не в состоянии"
+                f" «Удалён» (state={current_state}). Восстанавливать нечего."
+            )
+
+        session.execute(
+            text(
+                "UPDATE document_out_header SET state = :state"
+                " WHERE document_out_id = :id"
+            ),
+            {"state": state, "id": document_out_id},
+        )
 
 
 def create_payment(
@@ -695,166 +916,4 @@ def create_payment(
         payment_type_id=payment_type_id,
         payment_date=payment_date,
         notes=notes,
-    )
-
-
-def create_service_order_from_rocketwash_category(
-    *,
-    client_id: int,
-    rocketwash_category: str,
-    client_car: Optional[int] = None,
-    date_accept: Optional[object] = None,
-    created_by_user_id: int = _SYSTEM_USER_ID,
-) -> int:
-    """Создать заказ-наряд со всеми работами из категории RocketWash.
-
-    По маппингу ``rocketwash_category`` → ``service_complex_work_tree_id``
-    подбираются все :class:`~autodealer.domain.service_complex_work.ServiceComplexWork`
-    из соответствующего дерева и вставляются в заказ-наряд как строки услуг.
-
-    Args:
-        client_id: PK клиента в Firebird.
-        rocketwash_category: Категория из RocketWash (напр. ``"Кат.01"``).
-        client_car: PK из ``model_link`` — привязка конкретного авто.
-        date_accept: Дата/время приёма. По умолчанию — текущее время.
-        created_by_user_id: user_id исполнителя.
-
-    Returns:
-        ``document_out_id`` созданного заказ-наряда.
-
-    Raises:
-        KeyError: Если категория RocketWash не найдена в маппинге.
-        ValueError: Если в категории нет ни одной работы.
-
-    Example::
-
-        from autodealer.services import create_service_order_from_rocketwash_category
-        doc_id = create_service_order_from_rocketwash_category(
-            client_id=100,
-            rocketwash_category="Кат.01",
-            client_car=3,
-        )
-    """
-    from autodealer.integration.rocketwash import get_complex_work_tree_id
-    from autodealer.domain.service_complex_work import ServiceComplexWork
-    from autodealer.domain.service_complex_work_item import ServiceComplexWorkItem
-
-    tree_id = get_complex_work_tree_id(rocketwash_category)
-
-    # Все items дерева → все работы
-    item_ids = [
-        item.service_complex_work_item_id
-        for item in ServiceComplexWorkItem.objects.filter(
-            service_complex_work_tree_id=tree_id
-        ).all()
-    ]
-    if not item_ids:
-        raise ValueError(
-            f"Нет групп работ для категории {rocketwash_category!r} (tree_id={tree_id})"
-        )
-
-    works = (
-        ServiceComplexWork.objects.filter(service_complex_work_item_id__in=item_ids)
-        .order_by("position_number")
-        .all()
-    )
-
-    if not works:
-        raise ValueError(
-            f"Нет работ для категории {rocketwash_category!r} (tree_id={tree_id})"
-        )
-
-    items = [
-        ServiceOrderItem(
-            name=w.name,
-            price=float(w.price or 0),
-            time_value=float(w.time_value or 0),
-            quantity=w.quantity or 1,
-            external_id=str(w.service_complex_work_id),
-        )
-        for w in works
-    ]
-
-    return create_service_order(
-        client_id=client_id,
-        items=items,
-        client_car=client_car,
-        date_accept=date_accept,
-        created_by_user_id=created_by_user_id,
-    )
-
-
-def create_service_order_from_rocketwash_services(
-    *,
-    client_id: int,
-    rw_service_ids: list[int],
-    car_type_id: int,
-    client_car: Optional[int] = None,
-    date_accept: Optional[object] = None,
-    created_by_user_id: int = _SYSTEM_USER_ID,
-) -> int:
-    """Создать заказ-наряд из конкретных услуг RocketWash для заданной категории авто.
-
-    По ``car_type_id`` определяет категорию авто (``"Кат.01"`` … ``"Кат.04"``),
-    фильтрует ``rw_service_ids`` через маппинг и берёт цены из ``rocketwash.db``
-    для этой категории.
-
-    Args:
-        client_id: PK клиента в Firebird.
-        rw_service_ids: Список id услуг из RocketWash (``services.id``).
-        car_type_id: RocketWash ``car_type_id`` (35=Кат.04, 36=Кат.01, 37=Кат.02, 38=Кат.03).
-        client_car: PK из ``model_link`` — привязка конкретного авто.
-        date_accept: Дата/время приёма. По умолчанию — текущее время.
-        created_by_user_id: user_id исполнителя.
-
-    Returns:
-        ``document_out_id`` созданного заказ-наряда.
-
-    Raises:
-        KeyError: Если ``car_type_id`` неизвестен или услуга не найдена в маппинге.
-        ValueError: Если ни одна из услуг не смаппирована.
-
-    Example::
-
-        from autodealer.services import create_service_order_from_rocketwash_services
-
-        doc_id = create_service_order_from_rocketwash_services(
-            client_id=100,
-            rw_service_ids=[821460, 821462, 821476],
-            car_type_id=36,   # Кат.01 — Седан
-            client_car=3,
-        )
-    """
-    from autodealer.integration.rocketwash import (
-        _resolve_mapped_services,
-        _get_cw_name,
-        get_car_category_by_type_id,
-    )
-
-    car_category = get_car_category_by_type_id(car_type_id)
-    mapped = _resolve_mapped_services(rw_service_ids, car_category)
-
-    if not mapped:
-        raise ValueError(
-            f"Ни одна из услуг {rw_service_ids} не смаппирована "
-            f"для категории {car_category!r}"
-        )
-
-    items = [
-        ServiceOrderItem(
-            name=_get_cw_name(svc.service_id) or svc.name[:255],
-            price=svc.price or 0.0,
-            time_value=svc.duration or 0.0,
-            quantity=1,
-            external_id=str(svc.service_id),
-        )
-        for svc in mapped
-    ]
-
-    return create_service_order(
-        client_id=client_id,
-        items=items,
-        client_car=client_car,
-        date_accept=date_accept,
-        created_by_user_id=created_by_user_id,
     )

@@ -7,11 +7,27 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 
 from autodealer.connection import session_scope
 
 _ACCOUNTING_ITEM_CLIENT_PAYMENT = 3  # «Поступление от клиента»
+
+BOT_NOTE_MARKER = "Добавлено ботом"
+
+
+def _with_bot_marker(notes: Optional[str]) -> str:
+    """Добавить маркер :data:`BOT_NOTE_MARKER` к примечанию платежа.
+
+    Помечает платёж как созданный ботом/интеграцией, чтобы каскадное удаление
+    заказ-наряда могло отличать автоматические платежи от ручных.
+    Если маркер уже присутствует — строка не меняется.
+    """
+    if not notes:
+        return BOT_NOTE_MARKER
+    if BOT_NOTE_MARKER in notes:
+        return notes
+    return f"{BOT_NOTE_MARKER}; {notes}"
 
 
 # ---------------------------------------------------------------------------
@@ -180,7 +196,9 @@ def create_payment(
         payment_type_id: FK в ``payment_type`` — способ оплаты
             (1=Наличный, 2=Безналичный, 7=Банковская карта).
         payment_date: Дата/время платежа. По умолчанию — текущее время.
-        notes: Примечание к платежу.
+        notes: Примечание к платежу. К любому значению автоматически
+            добавляется маркер :data:`BOT_NOTE_MARKER` (``"Добавлено ботом"``),
+            чтобы отличать платежи бота от ручных при каскадном удалении.
 
     Returns:
         ``payment_id`` созданного платежа.
@@ -228,7 +246,7 @@ def create_payment(
             summa=summa,
             payment_date=pay_dt,
             document_registry_id=doc_reg_id,
-            notes=notes,
+            notes=_with_bot_marker(notes),
         )
         session.add(pay)
         session.flush()
@@ -264,6 +282,88 @@ def create_payment(
         )
 
     return payment_id
+
+
+def _delete_payment_rows(session, payment_id: int) -> None:
+    """Удалить все связанные с платежом записи в рамках переданной сессии.
+
+    Порядок: ``money_document_payment`` → ``money_document_detail``
+    → ``payment_document`` → ``payment_out`` → ``payment``.
+
+    Не проверяет существование платежа и не управляет транзакцией —
+    вызывающий код должен сделать это сам. Используется из
+    :func:`delete_payment` (одиночное удаление) и из
+    :func:`~autodealer.services.delete_service_order` для атомарного
+    каскадного удаления в одной транзакции.
+    """
+    mdd_ids = [
+        row[0]
+        for row in session.execute(
+            text(
+                "SELECT money_document_detail_id FROM money_document_payment"
+                " WHERE payment_id = :pid"
+            ),
+            {"pid": payment_id},
+        ).all()
+    ]
+
+    session.execute(
+        text("DELETE FROM money_document_payment WHERE payment_id = :pid"),
+        {"pid": payment_id},
+    )
+    if mdd_ids:
+        session.execute(
+            text(
+                "DELETE FROM money_document_detail"
+                " WHERE money_document_detail_id IN :ids"
+            ).bindparams(bindparam("ids", expanding=True)),
+            {"ids": mdd_ids},
+        )
+    session.execute(
+        text("DELETE FROM payment_document WHERE payment_id = :pid"),
+        {"pid": payment_id},
+    )
+    session.execute(
+        text("DELETE FROM payment_out WHERE payment_id = :pid"),
+        {"pid": payment_id},
+    )
+    session.execute(
+        text("DELETE FROM payment WHERE payment_id = :pid"),
+        {"pid": payment_id},
+    )
+
+
+def delete_payment(payment_id: int) -> None:
+    """Физически удалить платёж со всеми связанными записями.
+
+    Удаляет в обратном порядке создания:
+
+    1. ``money_document_payment``  — связь проводки с платежом.
+    2. ``money_document_detail``   — бухгалтерская проводка.
+    3. ``payment_document``        — привязка к ``document_registry``.
+    4. ``payment_out``             — привязка к ``document_out``.
+    5. ``payment``                 — сам платёж.
+
+    ``document_out.date_payment`` не сбрасывается — если удаляется
+    одиночный платёж, вызывающий код сам решает, нужно ли пересчитать
+    дату по оставшимся платежам. При каскадном удалении заказ-наряда
+    поле и так уходит вместе с ``document_out``.
+
+    Args:
+        payment_id: PK платежа.
+
+    Raises:
+        ValueError: Если платёж не найден.
+    """
+    with session_scope() as session:
+        exists = session.execute(
+            text("SELECT 1 FROM payment WHERE payment_id = :pid"),
+            {"pid": payment_id},
+        ).scalar()
+        if not exists:
+            raise ValueError(f"Платёж payment_id={payment_id} не найден")
+
+        _delete_payment_rows(session, payment_id)
 
 
 @dataclass

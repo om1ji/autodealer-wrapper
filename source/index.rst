@@ -26,6 +26,7 @@ Python ORM-обёртка над базой данных системы **Авт
    domains/payment
    domains/service_catalog
    domains/organization
+   domains/executor
 
 .. toctree::
    :maxdepth: 2
